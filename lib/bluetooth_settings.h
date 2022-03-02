@@ -1,3 +1,7 @@
+/*
+ * This file contains the customizable constants, and macros for the Bluetooth library.
+ */
+
 #ifndef BLUETOOTH_SETTINGS_H
 #define BLUETOOTH_SETTINGS_H
 

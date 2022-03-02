@@ -1,3 +1,8 @@
+/*
+ * This file contains the headers/prototypes for functions,
+ * constants, and macros used by the public Bluetooth library API.
+ */
+
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
 
@@ -59,13 +64,18 @@ uint8_t bt_setup();
  * the module will force that device to disconnect, and the "AT"
  * command will return "OK+LOST" instead.
  * 
- * @return 1 if the module responds positively, 0 otherwise 
+ * @returns 1 if the module responds positively, 0 otherwise 
  */
 uint8_t bt_test();
 
 /**
  * This function retrieves the MAC address for the
  * Bluetooth module.
+ * 
+ * If the response overflows the provided buffer, the response
+ * will be truncated to fill the buffer, and the buffer will end
+ * with a null-terminator regardless of if the response overflowed
+ * it or not.
  * 
  * It uses the "AT+ADDR?" command to request the
  * address.
@@ -169,6 +179,11 @@ size_t bt_getMACAddress(char* buffer, size_t bufferLength);
 /**
  * This function retrieves the name of the Bluetooth module.
  * 
+ * If the response overflows the provided buffer, the response
+ * will be truncated to fill the buffer, and the buffer will end
+ * with a null-terminator regardless of if the response overflowed
+ * it or not.
+ * 
  * It uses the "AT+NAME?" command to request the name.
  * 
  * @param buffer the pre-allocated character buffer where the null-terminated name will be stored
@@ -180,11 +195,13 @@ size_t bt_getModuleName(char* buffer, size_t bufferLength);
 /**
  * This function sets the name of the Bluetooth module.
  * The maximum length for a name is 12 characters.
+ * If a name is provided that is more than 12 characters,
+ * only the first 12 characters will be used.
  * 
  * It uses the "AT+NAME" command to set the name.
  * 
  * @param name the name for the module (max 12 characters)
- * @return 1 if the command ran successfully, 0 otherwise
+ * @returns 1 if the command ran successfully, 0 otherwise
  */
 uint8_t bt_setModuleName(const char* name);
 
@@ -200,6 +217,11 @@ uint8_t bt_setModuleName(const char* name);
  * This function retrieves the PIN code for the Bluetooth module.
  * This will be used when connecting from a remote device.
  * 
+ * If the response overflows the provided buffer, the response
+ * will be truncated to fill the buffer, and the buffer will end
+ * with a null-terminator regardless of if the response overflowed
+ * it or not.
+ * 
  * It uses the "AT+PASS?" command to request the name.
  * 
  * @param buffer the pre-allocated character buffer where the null-terminated PIN will be stored
@@ -211,12 +233,16 @@ size_t bt_getModulePIN(char* buffer, size_t bufferLength);
 /**
  * This function sets the PIN code for the Bluetooth module.
  * This will be used when connecting from a remote device, and
- * it must be 6 numeric digits.
+ * it must be 6 numeric digits.  If a PIN is provided that contains
+ * more than 6 digits, only the first 6 digits will be used.
+ * Conversely, if a PIN is provided that contains less than 6 digits,
+ * zeros will be appended to the end of the PIN to fill the remaining
+ * positions.
  * 
  * It uses the "AT+PASS" command to set the name.
  * 
  * @param name the PIN for the module (6 numeric digits)
- * @return 1 if the command ran successfully, 0 otherwise
+ * @returns 1 if the command ran successfully, 0 otherwise
  */
 uint8_t bt_setModulePIN(const char* pin);
 
@@ -233,7 +259,7 @@ uint8_t bt_setModulePIN(const char* pin);
  * 
  * It uses the "AT+RENEW" command to reset the configuration.
  * 
- * @return 1 if the command ran successfully, 0 otherwise
+ * @returns 1 if the command ran successfully, 0 otherwise
  */
 uint8_t bt_resetFactoryDefaults();
 
@@ -244,7 +270,7 @@ uint8_t bt_resetFactoryDefaults();
  * 
  * It uses the "AT+RESET" command to restart the module.
  * 
- * @return 1 if the command ran successfully, 0 otherwise
+ * @returns 1 if the command ran successfully, 0 otherwise
  */
 uint8_t bt_reset();
 
@@ -283,6 +309,47 @@ uint8_t bt_reset();
 // AT+UART
 
 // AT+VERS
+
+/*
+ * -----------------------------------------------------------------------------
+ * These functions are utility functions for use within configuration functions:
+ * -----------------------------------------------------------------------------
+ */
+
+/**
+ * This function sends a configuration command (AT command) to the Bluetooth
+ * module, and waits until it receives a response (or times out).
+ * 
+ * This function only returns whether the command completed successfully, so
+ * if information is needed in response to the command (like a return value),
+ * use bt_sendATQuery().
+ * 
+ * @param command the command to send to the module
+ * @param expectedResponse the response expected to the command (e.g. "OK")
+ * @returns 1 if the command completed successfully, 0 otherwise
+ */
+uint8_t bt_sendATCommand(const char* command, const char* expectedResponse);
+
+/**
+ * This function queries data from the Bluetooth module using configuration
+ * commands (AT commands), and waits until it receives a response (or times out).
+ * 
+ * This function expects additional information to be returned with the query
+ * response, so if only the success/failure information is required, use
+ * bt_sendATCommand().
+ * 
+ * If the response overflows the provided buffer, the response
+ * will be truncated to fill the buffer, and the buffer will end
+ * with a null-terminator regardless of if the response overflowed
+ * it or not.
+ * 
+ * @param command the command to send to the module
+ * @param expectedResponsePrefix the prefix expected in the response to the command (e.g. "OK+Get:")
+ * @param responseBuffer the pre-allocated character buffer where the null-terminated response will be stored
+ * @param responseBufferLength the length of the pre-allocated buffer provided to this function
+ * @returns the length of the response returned, excluding the null-terminator
+ */
+size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength);
 
 /*
  *   _   _   _    ___  _____                    _     ___    __ ___  
@@ -361,10 +428,15 @@ void bt_writeString(const char* string);
  * Calling this function when there is no data available on the UART stream
  * will result in a string of length 0 (the empty string, "").
  * 
+ * If the response overflows the provided buffer, the response
+ * will be truncated to fill the buffer, and the buffer will end
+ * with a null-terminator regardless of if the response overflowed
+ * it or not.
+ * 
  * @param delimiter the character that ends a string from the UART stream (e.g. "\n", "\0", etc.)
  * @param buffer the pre-allocated character buffer where the null-terminated string will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the number of bytes read from the stream (e.g. length of the string returned, including the null-terminator)
+ * @returns the length of the string read from the stream, excluding the null-terminator
  */
 size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength);
 
