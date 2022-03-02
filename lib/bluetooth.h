@@ -4,6 +4,17 @@
 #include <stdint.h>
 
 /*
+ *    ___                 _               _                          _     __  __                         
+ *   / __| ___  _ _   ___| |_  __ _  _ _ | |_  ___    __ _  _ _   __| |   |  \/  | __ _  __  _ _  ___  ___
+ *  | (__ / _ \| ' \ (_-<|  _|/ _` || ' \|  _|(_-<   / _` || ' \ / _` |   | |\/| |/ _` |/ _|| '_|/ _ \(_-<
+ *   \___|\___/|_||_|/__/ \__|\__,_||_||_|\__|/__/   \__,_||_||_|\__,_|   |_|  |_|\__,_|\__||_|  \___//__/
+ *                                                                                                        
+ *                                      (Constants and Macros)
+ */
+
+
+
+/*
  *    ___              __  _                         _    _            
  *   / __| ___  _ _   / _|(_) __ _  _  _  _ _  __ _ | |_ (_) ___  _ _  
  *  | (__ / _ \| ' \ |  _|| |/ _` || || || '_|/ _` ||  _|| |/ _ \| ' \ 
@@ -13,7 +24,265 @@
  *                          (Configuration)
  */
 
+/*
+ * ---------------------------------------------------------------
+ * These functions DO need to be run each time the module is used:
+ * ---------------------------------------------------------------
+ */
+
+/**
+ * This function initializes the pins for the Bluetooth module
+ * as well as the necessary timers for the UART stream.
+ *
+ * Unlike other configuration functions, this one must be run
+ * at the beginning of every program that uses the Bluetooth
+ * module.
+ *
+ * @returns 1 if the setup was completed successfully, 0 otherwise
+ */
 uint8_t bt_setup();
+
+/*
+ * -------------------------------------------------------------------
+ * These functions DO NOT need to be run each time the module is used:
+ * -------------------------------------------------------------------
+ */
+
+/**
+ * This function pings the Bluetooth module to make sure that
+ * all of the wiring is working correctly.
+ * 
+ * It uses the "AT" command to ping the module, and expects a
+ * response of "OK".
+ * 
+ * Note: Calling this function while a device is connected to
+ * the module will force that device to disconnect, and the "AT"
+ * command will return "OK+LOST" instead.
+ * 
+ * @return 1 if the module responds positively, 0 otherwise 
+ */
+uint8_t bt_test();
+
+/**
+ * This function retrieves the MAC address for the
+ * Bluetooth module.
+ * 
+ * It uses the "AT+ADDR?" command to request the
+ * address.
+ * 
+ * @param buffer the pre-allocated character buffer where the null-terminated address will be stored
+ * @param bufferLength the length of the pre-allocated buffer provided to this function
+ * @returns the length of the address returned, excluding the null-terminator
+ */
+size_t bt_getMACAddress(char* buffer, size_t bufferLength);
+
+// AT+ADVI
+
+// AT+ADTY
+
+// AT+ANCS
+
+// AT+ALLO
+
+// AT+AD
+
+// AT+BEFC
+
+// AT+AFTC
+
+// AT+BATC
+
+// AT+BATT
+
+// AT+BIT7
+
+// AT+BAUD
+
+// AT+COMI
+
+// AT+COMA
+
+// AT+COLA
+
+// AT+COSU
+
+// AT+COUP
+
+// AT+CHAR
+
+// AT+CLEAR
+
+// AT+CONNL
+
+// AT+CO
+
+// AT+COL
+
+// AT+CYC
+
+// AT+COMP
+
+// AT+DISC
+
+// AT+DISI
+
+// AT+CONN
+
+// AT+DELO
+
+// AT+ERASE
+
+// AT+FLAG
+
+// AT+FILT
+
+// AT_FIOW [FLOW?]
+
+// AT+GAIN
+
+// AT+HUMI
+
+// AT+IMME
+
+// AT+IBEA
+
+// AT+IBE0
+
+// AT+IBE1
+
+// AT+IBE2
+
+// AT+IBE3
+
+// AT+MARJ
+
+// AT+MINO
+
+// AT+MEAS
+
+// AT+MODE
+
+// AT+NOTI
+
+// AT+NOTP
+
+/**
+ * This function retrieves the name of the Bluetooth module.
+ * 
+ * It uses the "AT+NAME?" command to request the name.
+ * 
+ * @param buffer the pre-allocated character buffer where the null-terminated name will be stored
+ * @param bufferLength the length of the pre-allocated buffer provided to this function
+ * @returns the length of the name returned, excluding the null-terminator
+ */
+size_t bt_getModuleName(char* buffer, size_t bufferLength);
+
+/**
+ * This function sets the name of the Bluetooth module.
+ * The maximum length for a name is 12 characters.
+ * 
+ * It uses the "AT+NAME" command to set the name.
+ * 
+ * @param name the name for the module (max 12 characters)
+ * @return 1 if the command ran successfully, 0 otherwise
+ */
+uint8_t bt_setModuleName(const char* name);
+
+// AT+PCTL
+
+// AT+PARI
+
+// AT+PIO1
+
+// AT+PIO
+
+/**
+ * This function retrieves the PIN code for the Bluetooth module.
+ * This will be used when connecting from a remote device.
+ * 
+ * It uses the "AT+PASS?" command to request the name.
+ * 
+ * @param buffer the pre-allocated character buffer where the null-terminated PIN will be stored
+ * @param bufferLength the length of the pre-allocated buffer provided to this function
+ * @returns the length of the PIN returned, excluding the null-terminator
+ */
+size_t bt_getModulePIN(char* buffer, size_t bufferLength);
+
+/**
+ * This function sets the PIN code for the Bluetooth module.
+ * This will be used when connecting from a remote device, and
+ * it must be 6 numeric digits.
+ * 
+ * It uses the "AT+PASS" command to set the name.
+ * 
+ * @param name the PIN for the module (6 numeric digits)
+ * @return 1 if the command ran successfully, 0 otherwise
+ */
+uint8_t bt_setModulePIN(const char* pin);
+
+// AT+POWE
+
+// AT+PWRM
+
+// AT+RELI
+
+/**
+ * This function resets all Bluetooth module configurations
+ * to their factory-default values.  To just perform a restart
+ * of the module, use bt_reset().
+ * 
+ * It uses the "AT+RENEW" command to reset the configuration.
+ * 
+ * @return 1 if the command ran successfully, 0 otherwise
+ */
+uint8_t bt_resetFactoryDefaults();
+
+/**
+ * This function restarts the Bluetooth module.  To reset
+ * configurations to their factory-default settings, use
+ * bt_resetFactoryDefaults().
+ * 
+ * It uses the "AT+RESET" command to restart the module.
+ * 
+ * @return 1 if the command ran successfully, 0 otherwise
+ */
+uint8_t bt_reset();
+
+// AT+ROLE
+
+// AT+RSSI
+
+// AT+RADD
+
+// AT+RAT
+
+// AT+STOP
+
+// AT+START
+
+// AT+SLEEP
+
+// AT+SAVE
+
+// AT+SCAN
+
+// AT+SENS
+
+// AT+SHOW
+
+// AT+TEHU
+
+// AT+TEMP
+
+// AT+TCON
+
+// AT+TYPE
+
+// AT+UUID
+
+// AT+UART
+
+// AT+VERS
 
 /*
  *   _   _   _    ___  _____                    _     ___    __ ___  

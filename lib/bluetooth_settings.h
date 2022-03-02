@@ -30,6 +30,9 @@
  *                          (Configuration)
  */
 
+// Define the baud rate to be used by the UART stream to the Bluetooth module
+#define BT_BAUD_RATE 9600
+
 // Define the maximum number of attempts the library will make to connect/communicate
 // with the Bluetooth module before it registers a failure/error
 #define BT_MAXIMUM_ATTEMPTS 10
