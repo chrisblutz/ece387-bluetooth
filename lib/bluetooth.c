@@ -363,8 +363,91 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
  *                https://github.com/blalor/avr-softuart
  */
 
-ISR(BT_TIMER_INTERRUPT_VECTOR) {
+// Initialize globals required for software UART
+volatile static uint8_t  uartInputBuffer[BT_UART_RX_BUFFER_LENGTH];
+volatile static uint8_t  uartBufferInputIndex;
+static uint8_t           uartBufferReadIndex;
+volatile static uint8_t  uartReceiverBusy;
+volatile static uint8_t  uartTransmitterBusy;
+volatile static uint8_t  uartTransmitterCounter;
+volatile static uint8_t  uartTxBitsRemaining;
+volatile static uint16_t uartTxBitBuffer; // 10 bits long, so need 16-bit value instead of 8
 
+ISR(BT_TIMER_INTERRUPT_VECTOR) {
+    // Define internal values for the ISR
+    static uint8_t uartAwaitingStopBit = 0;
+    static uint8_t uartReceiverMask;
+    static uint8_t uartReceiverCounter;
+    static uint8_t uartRxBitsRemaining;
+    static uint8_t uartRxBitBuffer;
+
+    // Send data from the output buffer (if there is data to send)
+    if (uartTransmitterBusy) {
+        uint8_t counter = uartTransmitterCounter;
+        if (--counter == 0) {
+            // Send next bit in output buffer
+            if (uartTxBitBuffer & 0x01)
+                bt_uartSetTxHigh();
+            else
+                bt_uartSetTxLow();
+            
+            // Pop the bit off the buffer
+            uartTxBitBuffer >>= 1;
+            // Reset counter
+            counter = 3;
+            // If there aren't any bits left to send, set transmitter to ready
+            if (--uartTxBitsRemaining == 0)
+                uartTransmitterBusy = 0;
+        }
+        uartTransmitterCounter = counter;
+    }
+
+    // Read data off of the UART receiver pin into the input buffer
+    if (uartAwaitingStopBit) {
+        if (--uartReceiverCounter == 0) {
+            // Tell receiver we're ready for the next byte
+            uartAwaitingStopBit = 0;
+            uartReceiverBusy = 0;
+            // Insert received bit into input buffer
+            uartInputBuffer[uartBufferInputIndex] = uartRxBitBuffer;
+            // Increment buffer index (or wrap if at end)
+            if (++uartBufferInputIndex >= BT_UART_RX_BUFFER_LENGTH)
+                uartBufferInputIndex = 0;
+            
+            // TODO - do logic regarding checking for connection/disconnection, availability, etc.
+        }
+    } else {
+        // If we're not currently reading a byte, wait
+        // for the next start bit
+        if (!uartReceiverBusy) {
+            // If we receive the start bit, initialize the receiver values
+            if (!bt_uartGetRx()) {
+                uartReceiverBusy = 1;
+                uartRxBitBuffer = 0;
+                uartReceiverCounter = 4;
+                uartRxBitsRemaining = BT_UART_RX_BITS;
+                uartReceiverMask = 1;
+            }
+        } else {
+            uint8_t counter = uartReceiverCounter;
+            if (--counter == 0) {
+                // Reset counter
+                counter = 3;
+
+                // Receive the next bit and insert it into the buffer
+                uint8_t in = bt_uartGetRx();
+                if (bt_uartGetRx())
+                    uartRxBitBuffer |= uartReceiverMask;
+                // Shift the receiver mask for the next bit
+                uartReceiverMask <<= 1;
+                
+                // If we've received a full byte, wait for the stop bit
+                if (--uartRxBitsRemaining == 0)
+                    uartAwaitingStopBit = 1;
+            }
+            uartReceiverCounter = counter;
+        }
+    }
 }
 
 uint8_t bt_connected() {
@@ -372,15 +455,61 @@ uint8_t bt_connected() {
 }
 
 uint8_t bt_available() {
-    return 0; // TODO
+    // Check if there is a bit currently available,
+    // and if not, check if the receiver is currently
+    // reading a byte.  If so, wait for that bit to
+    // be received
+    if (uartBufferInputIndex != uartBufferReadIndex) {
+        return 1;
+    } else {
+        // Wait for the receiver to finish reading a byte (if it currently is)
+        while (uartReceiverBusy && (uartBufferInputIndex == uartBufferReadIndex));
+
+        // Now that the receiver is done or has read a bit, check again for availability
+        return uartBufferInputIndex != uartBufferReadIndex;
+    }
 }
 
 void bt_write(const uint8_t byte) {
+    // Wait for the transmitter to finish its work
+    while (uartTransmitterBusy); // TODO - timeout?
 
+    // Set up transmitter to transmit the byte
+    uartTransmitterCounter = 3;
+    uartTxBitsRemaining = BT_UART_TX_BITS;
+    // Transform the byte into a UART packet
+    uartTxBitBuffer = (byte << 1) | 0x200;
+    // Notify transmitter there is a byte available
+    uartTransmitterBusy = 1;
 }
 
 uint8_t bt_read() {
-    return 0; // TODO
+    // If we haven't read any new characters, return \0
+    if (uartBufferInputIndex == uartBufferReadIndex)
+        return 0;
+
+    // Pull the latest byte from the input buffer
+    uint8_t in = uartInputBuffer[uartBufferReadIndex];
+    // Increment the read index (wrapping if it exceeds the buffer size)
+    if (++uartBufferReadIndex >= BT_UART_RX_BUFFER_LENGTH)
+        uartBufferReadIndex = 0;
+    
+    // Return the byte
+    return in; 
+}
+
+void bt_initializeUARTPins() {
+
+}
+
+void bt_initializeUARTTimer() {
+
+}
+
+void bt_initializeUART() {
+    // Initialize pins/timer used for UART
+    bt_initializeUARTPins();
+    bt_initializeUARTTimer();
 }
 
 /*

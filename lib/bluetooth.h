@@ -374,6 +374,9 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
  *   \___//_/ \_\|_|_\  |_|     \__,_||_||_|\__,_|   |___|/_/  \___/ 
  *                                                                   
  *                          (UART and I/O)
+ *
+ *        Software UART implementation is based on/modified from
+ *                https://github.com/blalor/avr-softuart
  */
 
 /**
@@ -415,9 +418,9 @@ void bt_write(const uint8_t byte);
  * This function reads a byte of data from the Bluetooth module's
  * UART stream.
  * 
- * Calling this function when there is no data available on the 
- * UART stream (i.e. when bt_available() returns 0), this function
- * will return the previous byte of data again.
+ * This function does not block, and will return 0 if it is called
+ * and no new data is available.  To ensure there is data available
+ * to be read, verify bt_available() first.
  * 
  * @returns the byte of data read
  */
@@ -451,8 +454,9 @@ void bt_writeString(const char* string);
  * delimiter, this function will not work.  Instead, use a while loop to check
  * if bytes are available, and then read them using bt_read().
  * 
- * Calling this function when there is no data available on the UART stream
- * will result in a string of length 0 (the empty string, "").
+ * This function does not block, so if there is no new data to read, it
+ * will result in a string of length 0 (the empty string, "").  To ensure new
+ * data is available when this function is called, verify bt_available() first.
  * 
  * If the response overflows the provided buffer, the response
  * will be truncated to fill the buffer, and the buffer will end

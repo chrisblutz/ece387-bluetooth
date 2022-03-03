@@ -39,6 +39,43 @@
 #define min(X,Y) (((X) < (Y)) ? (X) : (Y))
 
 /*
+ *   _   _   _    ___  _____                    _     ___    __ ___  
+ *  | | | | /_\  | _ \|_   _|    __ _  _ _   __| |   |_ _|  / // _ \ 
+ *  | |_| |/ _ \ |   /  | |     / _` || ' \ / _` |    | |  / /| (_) |
+ *   \___//_/ \_\|_|_\  |_|     \__,_||_||_|\__,_|   |___|/_/  \___/ 
+ *                                                                   
+ *                          (UART and I/O)
+ *
+ *        Software UART implementation is based on/modified from
+ *                https://github.com/blalor/avr-softuart
+ */
+
+// Define timer settings (extrapolate from user-provided values)
+// Timer must tick at 3x baud rate
+#define BT_TIMER_TOP ((F_CPU / BT_TIMER_PRESCALE_VALUE / BT_BAUD_RATE / 3) - 1)
+// Double-check that the max timer value fits in the timer's bit width
+#if (BT_TIMER_TOP > BT_TIMER_MAXIMUM_VALUE)
+    #warning "Timer interval required for baud rate exceeds maximum possible value.  Use a wider timer."
+#endif
+
+// Define bit widths of UART input/output
+#define BT_UART_TX_BITS 10
+#define BT_UART_RX_BITS 8
+
+// Define size of the UART receiver buffer
+#define BT_UART_RX_BUFFER_LENGTH 32
+
+#define bt_uartSetTxLow()  (BT_TX_PORT &= ~(1 << BT_TX_BIT))
+#define bt_uartSetTxHigh() (BT_TX_PORT |= (1 << BT_TX_BIT))
+#define bt_uartGetRx()     (BT_RX_PIN & (1 << BT_RX_BIT))
+
+void bt_initializeUARTPins();
+
+void bt_initializeUARTTimer();
+
+void bt_initializeUART();
+
+/*
  *   _   _  _    _  _  _  _    _          
  *  | | | || |_ (_)| |(_)| |_ (_) ___  ___
  *  | |_| ||  _|| || || ||  _|| |/ -_)(_-<
