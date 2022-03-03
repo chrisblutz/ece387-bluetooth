@@ -391,6 +391,21 @@ uint8_t bt_connected();
  * This function checks to see if a byte of data is available
  * to be read from the Bluetooth module's UART stream.
  * 
+ * This function is non-blocking, so even if a byte is currently
+ * being read by the UART receiver, this function will not indicate
+ * that a new byte is ready until that byte is completely received.
+ * 
+ * If blocking functionality is required (e.g. concurrent bytes
+ * need to be read at the same time), use bt_awaitAvailable().
+ * 
+ * @returns 1 if a byte is available, 0 if no byte is available
+ */
+uint8_t bt_available();
+
+/**
+ * This function checks to see if a byte of data is available
+ * to be read from the Bluetooth module's UART stream.
+ * 
  * This function is blocking, as it waits for the entire byte of
  * data to be read off of the UART stream before returning, if
  * there is a byte currently being read.  If there is no byte
@@ -400,9 +415,16 @@ uint8_t bt_connected();
  * read as a stream of bytes (using a while loop on bt_available())
  * of unknown length, instead of relying on a known length of bytes.
  * 
+ * However, this functionality could also lead to multiple consecutive
+ * transmissions being read together, as this function waits for an extra
+ * UART tick to verify that no further data is being sent.
+ * 
+ * For non-blocking functionality (which does not wait for the
+ * current byte to be received completely), use bt_available().
+ * 
  * @returns 1 if a byte is available, 0 if no byte is available
  */
-uint8_t bt_available();
+uint8_t bt_awaitAvailable();
 
 /**
  * This function writes a byte of data to the Bluetooth module's

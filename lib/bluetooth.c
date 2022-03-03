@@ -12,6 +12,9 @@
 #include "bluetooth_internal.h"
 #include "bluetooth.h"
 
+// TODO Remove
+#include "USART.h"
+
 /*
  *    ___              __  _                         _    _            
  *   / __| ___  _ _   / _|(_) __ _  _  _  _ _  __ _ | |_ (_) ___  _ _  
@@ -52,6 +55,10 @@ uint8_t bt_test() {
 
 size_t bt_getMACAddress(char* buffer, size_t bufferLength) {
     // Send the AT+ADDR? command (expecting OK+ADDR: to prefix the response)
+    char buf[4];
+    itoa(BT_TIMER_TOP, buf, 10);
+    printString(buf);
+    printString("Send\n");
     return bt_sendATQuery("AT+ADDR?", "OK+ADDR:", buffer, bufferLength);
 }
 
@@ -284,14 +291,14 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
 
     // Wait for a response to become available, or the number of attempts is maxed out
     size_t attemptCount = 0;
-    while (!bt_available() && attemptCount < BT_MAXIMUM_ATTEMPTS)
+    while (!bt_awaitAvailable() && attemptCount < BT_MAXIMUM_ATTEMPTS)
         attemptCount++;
     
     // If we've received data, process it.  If not, return 0
     if (bt_available()) {
         // Check the characters in the UART stream against the expected response
         char input;
-        while (bt_available() && *expectedResponse) {
+        while (bt_awaitAvailable() && *expectedResponse) {
             input = (char) bt_read();
             if (input != *expectedResponse)
                 break;
@@ -299,12 +306,12 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
         }
         // Now that we've exhausted the expected response, make sure we don't have anything
         // else left in the stream.  If we do, read/dispose of it and return 0
-        if (!bt_available() && !*expectedResponse) {
+        if (!bt_awaitAvailable() && !*expectedResponse) {
             return 1;
         } else {
             // Read the rest of the available bytes so the stream is ready
             // to process the next command/input
-            while (bt_available())
+            while (bt_awaitAvailable())
                 bt_read();
             return 0;
         }
@@ -318,25 +325,38 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
     if (bt_connected())
         return -1;
 
+    printString("Write\n");
     bt_writeString(command);
 
     // Wait for a response to become available, or the number of attempts is maxed out
+    printString("Wait\n");
     size_t attemptCount = 0;
-    while (!bt_available() && attemptCount < BT_MAXIMUM_ATTEMPTS)
+    while (!bt_awaitAvailable() && attemptCount < BT_MAXIMUM_ATTEMPTS)
         attemptCount++;
     
+    printString("Avail\n");
     // If we've received data, process it.  If not, return 0
     if (bt_available()) {
         // Read the data into a buffer so we can manipulate it later
         char buffer[BT_AT_RESPONSE_BUFFER_LENGTH];
         size_t bufferIndex = 0;
-        while (bt_available() && bufferIndex < BT_AT_RESPONSE_BUFFER_LENGTH)
+        while (bt_awaitAvailable() && bufferIndex < BT_AT_RESPONSE_BUFFER_LENGTH) {
             buffer[bufferIndex++] = (char) bt_read();
+            transmitByte(buffer[bufferIndex - 1]);
+        }
+        transmitByte('\n');
+        printString("Done\n");
 
         // If we get enough data to overflow our buffer, read and dispose of the rest of the input
         // so the UART stream can process future commands/input
-        while (bt_available())
-            bt_read();
+        while (bt_awaitAvailable()) {
+            uint8_t b = bt_read();
+            char buf[4];
+            itoa(b, buf, 10);
+            printString(buf);
+            transmitByte(' ');
+        }
+        printString("Clear\n");
         
         // Check that the required prefix is present, and if not, return -1
         if (strprefix(buffer, expectedResponsePrefix)) {
@@ -346,6 +366,7 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
             size_t responseBufferEnd = min(responseLength, responseBufferLength - 1);
             strncpy(responseBuffer, buffer + strlen(expectedResponsePrefix), responseBufferEnd);
             responseBuffer[responseBufferEnd] = '\0';
+            printString("Exit\n");
             return responseBufferEnd;
         } else {
             return -1;
@@ -377,6 +398,7 @@ volatile static uint8_t  uartTransmitterBusy;
 volatile static uint8_t  uartTransmitterCounter;
 volatile static uint8_t  uartTxBitsRemaining;
 volatile static uint16_t uartTxBitBuffer; // 10 bits long, so need 16-bit value instead of 8
+volatile static uint8_t  uartConcurrencyCheck = 0;
 
 ISR(BT_TIMER_INTERRUPT_VECTOR) {
     // Define internal values for the ISR
@@ -386,9 +408,11 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
     static uint8_t uartRxBitsRemaining;
     static uint8_t uartRxBitBuffer;
 
+    uint8_t counter;
+
     // Send data from the output buffer (if there is data to send)
     if (uartTransmitterBusy) {
-        uint8_t counter = uartTransmitterCounter;
+        counter = uartTransmitterCounter;
         if (--counter == 0) {
             // Send next bit in output buffer
             if (uartTxBitBuffer & 0x01)
@@ -419,28 +443,36 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
             if (++uartBufferInputIndex >= BT_UART_RX_BUFFER_LENGTH)
                 uartBufferInputIndex = 0;
             
+            // Reset the UART concurrency check
+            uartConcurrencyCheck = 0;
+            
             // TODO - do logic regarding checking for connection/disconnection, availability, etc.
         }
     } else {
         // If we're not currently reading a byte, wait
         // for the next start bit
-        if (!uartReceiverBusy) {
+        if (uartReceiverBusy == 0) {
             // If we receive the start bit, initialize the receiver values
-            if (!bt_uartGetRx()) {
+            if (bt_uartGetRx() == 0) {
                 uartReceiverBusy = 1;
                 uartRxBitBuffer = 0;
                 uartReceiverCounter = 4;
                 uartRxBitsRemaining = BT_UART_RX_BITS;
                 uartReceiverMask = 1;
-            }
+                uartConcurrencyCheck = 0;
+            }/* else {
+                // Since we didn't receive the start bit, increment the concurrency check
+                // so we can determine if any more data is being sent
+                if (uartConcurrencyCheck < BT_UART_CONCURRENT_CHECK_LIMIT)
+                    uartConcurrencyCheck++;
+            }*/
         } else {
-            uint8_t counter = uartReceiverCounter;
+            counter = uartReceiverCounter;
             if (--counter == 0) {
                 // Reset counter
                 counter = 3;
 
                 // Receive the next bit and insert it into the buffer
-                uint8_t in = bt_uartGetRx();
                 if (bt_uartGetRx())
                     uartRxBitBuffer |= uartReceiverMask;
                 // Shift the receiver mask for the next bit
@@ -460,15 +492,34 @@ uint8_t bt_connected() {
 }
 
 uint8_t bt_available() {
+    // Check if the most-recently read byte is the most recent input
+    return uartBufferInputIndex != uartBufferReadIndex;
+}
+
+uint8_t bt_awaitAvailable() {
     // Check if there is a bit currently available,
     // and if not, check if the receiver is currently
     // reading a byte.  If so, wait for that bit to
     // be received
     if (uartBufferInputIndex != uartBufferReadIndex) {
+        char buf[4];
+        itoa(uartBufferInputIndex, buf, 10);
+        printString(buf);
+        transmitByte(' ');
+        itoa(uartBufferReadIndex, buf, 10);
+        printString(buf);
+        transmitByte('|');
         return 1;
     } else {
-        // Wait for the receiver to finish reading a byte (if it currently is)
-        while (uartReceiverBusy && (uartBufferInputIndex == uartBufferReadIndex));
+        // Wait for the receiver to finish reading a byte (if it currently is) and wait for the concurrency check to run
+        while ((uartReceiverBusy/* || uartConcurrencyCheck < BT_UART_CONCURRENT_CHECK_LIMIT*/) && (uartBufferInputIndex == uartBufferReadIndex));
+        char buf[4];
+        itoa(uartBufferInputIndex, buf, 10);
+        printString(buf);
+        transmitByte(' ');
+        itoa(uartBufferReadIndex, buf, 10);
+        printString(buf);
+        transmitByte('|');
 
         // Now that the receiver is done or has read a bit, check again for availability
         return uartBufferInputIndex != uartBufferReadIndex;
@@ -517,8 +568,8 @@ void bt_initializeUARTTimer() {
 
     // Setup the UART interrupt timer
     BT_TIMER_COMPARE_REGISTER = BT_TIMER_TOP;
-    BT_TIMER_COUNTER_REGISTER_A = BT_TIMER_CONTROL_REGISTER_A_MASK | BT_TIMER_PRESCALER_REG_A_MASK;
-    BT_TIMER_COUNTER_REGISTER_B = BT_TIMER_CONTROL_REGISTER_B_MASK | BT_TIMER_PRESCALER_REG_B_MASK;
+    BT_TIMER_CONTROL_REGISTER_A = BT_TIMER_CONTROL_REGISTER_A_MASK | BT_TIMER_PRESCALER_REG_A_MASK;
+    BT_TIMER_CONTROL_REGISTER_B = BT_TIMER_CONTROL_REGISTER_B_MASK | BT_TIMER_PRESCALER_REG_B_MASK;
     BT_TIMER_INTERRUPT_MASK_REGISTER |= BT_TIMER_INTERRUPT_ENABLE_MASK;
     // Set counter to 0
     BT_TIMER_COUNTER_REGISTER = 0;
@@ -560,7 +611,7 @@ size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength) {
     // Read bytes to fill the given buffer
     size_t bufferIndex = 0;
     char input;
-    while (bt_available() && bufferIndex < bufferLength - 1) {
+    while (bt_awaitAvailable() && bufferIndex < bufferLength - 1) {
         input = (char) bt_read();
 
         // If we've reached a delimiter, break
@@ -574,7 +625,7 @@ size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength) {
     // If we've not reached the delimiter and there are still bytes available
     // (e.g. we overflowed the buffer), read the remaining bytes to clear the input
     // so the UART stream can handle further input
-    while (bt_available() && (input = bt_read()) != delimiter);
+    while (bt_awaitAvailable() && (input = bt_read()) != delimiter);
 
     return strlen(buffer);
 }

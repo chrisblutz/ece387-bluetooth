@@ -63,7 +63,11 @@
 #define BT_UART_RX_BITS 8
 
 // Define size of the UART receiver buffer
-#define BT_UART_RX_BUFFER_LENGTH 32
+#define BT_UART_RX_BUFFER_LENGTH 64
+
+// Define the number of ticks required before the bt_available() function is able
+// to determine that no further data is being sent
+#define BT_UART_CONCURRENT_CHECK_LIMIT 3
 
 #define bt_uartSetTxLow()  (BT_TX_PORT &= ~(1 << BT_TX_BIT))
 #define bt_uartSetTxHigh() (BT_TX_PORT |= (1 << BT_TX_BIT))
