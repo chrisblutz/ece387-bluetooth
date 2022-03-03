@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <avr/interrupt.h>
+
 #include "bluetooth_settings.h"
 #include "bluetooth_internal.h"
 #include "bluetooth.h"
@@ -27,7 +29,10 @@
  */
 
 uint8_t bt_setup() {
-    return 0; // TODO
+    // Initialize the software UART stream
+    bt_initializeUART();
+
+    return 1;
 }
 
 /*
@@ -499,14 +504,37 @@ uint8_t bt_read() {
 }
 
 void bt_initializeUARTPins() {
-
+    // Set TX pin to output, and RX pin to input
+    BT_TX_DDR |= (1 << BT_TX_BIT);
+    BT_RX_DDR &= ~(1 << BT_RX_BIT);
 }
 
 void bt_initializeUARTTimer() {
+    // Save the status register so we can restore it later
+    uint8_t sregTemp = SREG;
+    // Disable interrupts while the timer is initialized
+    cli();
 
+    // Setup the UART interrupt timer
+    BT_TIMER_COMPARE_REGISTER = BT_TIMER_TOP;
+    BT_TIMER_COUNTER_REGISTER_A = BT_TIMER_CONTROL_REGISTER_A_MASK | BT_TIMER_PRESCALER_REG_A_MASK;
+    BT_TIMER_COUNTER_REGISTER_B = BT_TIMER_CONTROL_REGISTER_B_MASK | BT_TIMER_PRESCALER_REG_B_MASK;
+    BT_TIMER_INTERRUPT_MASK_REGISTER |= BT_TIMER_INTERRUPT_ENABLE_MASK;
+    // Set counter to 0
+    BT_TIMER_COUNTER_REGISTER = 0;
+
+    // Restore the status register
+    SREG = sregTemp;
 }
 
 void bt_initializeUART() {
+    // Set busy flags to false initially
+    uartTransmitterBusy = 0;
+    uartReceiverBusy = 0;
+
+    // Turn on TX pin
+    bt_uartSetTxHigh();
+
     // Initialize pins/timer used for UART
     bt_initializeUARTPins();
     bt_initializeUARTTimer();

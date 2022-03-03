@@ -9,8 +9,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 
-#include <avr/interrupt.h>
-
 /*
  *    ___                 _               _                          _     __  __                         
  *   / __| ___  _ _   ___| |_  __ _  _ _ | |_  ___    __ _  _ _   __| |   |  \/  | __ _  __  _ _  ___  ___
