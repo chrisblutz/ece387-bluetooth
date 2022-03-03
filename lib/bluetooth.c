@@ -3,7 +3,7 @@
  * the Bluetooth library.
  */
 
-#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 
 #include "bluetooth_settings.h"
@@ -27,7 +27,7 @@
  */
 
 uint8_t bt_setup() {
-
+    return 0; // TODO
 }
 
 /*
@@ -38,7 +38,7 @@ uint8_t bt_setup() {
 
 uint8_t bt_test() {
     // Send the AT command (expecting OK or OK+LOST in response)
-    char responseBuffer[6]; // Should hold either "" (OK) or "+LOST" (OK+LOST)
+    char responseBuffer[6]; // Should hold either "" (OK) or "+LOST" (OK+LOST) after next line
     size_t responseLength = bt_sendATQuery("AT", "OK", responseBuffer, 6);
     return responseLength == 0 || (responseLength > 0 && strcmp(responseBuffer, "+LOST") == 0);
 }
@@ -271,6 +271,10 @@ uint8_t bt_reset() {
  */
 
 uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
+    // If the module is connected to a remote device, return 0
+    if (bt_connected())
+        return 0;
+
     bt_writeString(command);
 
     // Wait for a response to become available, or the number of attempts is maxed out
@@ -305,6 +309,10 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
 }
 
 size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength) {
+    // If the module is connected to a remote device, return -1
+    if (bt_connected())
+        return -1;
+
     bt_writeString(command);
 
     // Wait for a response to become available, or the number of attempts is maxed out
@@ -349,10 +357,21 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
  *   \___//_/ \_\|_|_\  |_|     \__,_||_||_|\__,_|   |___|/_/  \___/ 
  *                                                                   
  *                          (UART and I/O)
+ *
+ *        Software UART implementation is based on/modified from
+ *                https://github.com/blalor/avr-softuart
  */
 
-uint8_t bt_available() {
+ISR(BT_TIMER_INTERRUPT_VECTOR) {
 
+}
+
+uint8_t bt_connected() {
+    return 0; // TODO
+}
+
+uint8_t bt_available() {
+    return 0; // TODO
 }
 
 void bt_write(const uint8_t byte) {
@@ -360,7 +379,7 @@ void bt_write(const uint8_t byte) {
 }
 
 uint8_t bt_read() {
-
+    return 0; // TODO
 }
 
 /*
@@ -397,8 +416,7 @@ size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength) {
     // If we've not reached the delimiter and there are still bytes available
     // (e.g. we overflowed the buffer), read the remaining bytes to clear the input
     // so the UART stream can handle further input
-    while (input != delimiter && bt_available())
-        input = bt_read();
+    while (bt_available() && (input = bt_read()) != delimiter);
 
     return strlen(buffer);
 }

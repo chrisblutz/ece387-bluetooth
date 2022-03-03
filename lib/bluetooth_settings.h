@@ -24,6 +24,9 @@
 #define BT_TX_DDR  DDRB
 #define BT_TX_BIT  PB2
 
+// Define the timer information used for the UART stream
+#define BT_TIMER_INTERRUPT_VECTOR TIMER0_COMPA_vect
+
 /*
  *    ___              __  _                         _    _            
  *   / __| ___  _ _   / _|(_) __ _  _  _  _ _  __ _ | |_ (_) ___  _ _  

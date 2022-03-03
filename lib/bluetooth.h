@@ -6,7 +6,10 @@
 #ifndef BLUETOOTH_H
 #define BLUETOOTH_H
 
+#include <stdlib.h>
 #include <stdint.h>
+
+#include <avr/interrupt.h>
 
 /*
  *    ___                 _               _                          _     __  __                         
@@ -79,6 +82,8 @@ uint8_t bt_setup();
  */
 uint8_t bt_test();
 
+// AT+ADC
+
 /**
  * This function retrieves the MAC address for the
  * Bluetooth module.
@@ -93,7 +98,7 @@ uint8_t bt_test();
  * 
  * @param buffer the pre-allocated character buffer where the null-terminated address will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the address returned, excluding the null-terminator
+ * @returns the length of the address returned, excluding the null-terminator, or -1 if an error occurred
  */
 size_t bt_getMACAddress(char* buffer, size_t bufferLength);
 
@@ -199,7 +204,7 @@ size_t bt_getMACAddress(char* buffer, size_t bufferLength);
  * 
  * @param buffer the pre-allocated character buffer where the null-terminated name will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the name returned, excluding the null-terminator
+ * @returns the length of the name returned, excluding the null-terminator, or -1 if an error occurred
  */
 size_t bt_getModuleName(char* buffer, size_t bufferLength);
 
@@ -237,7 +242,7 @@ uint8_t bt_setModuleName(const char* name);
  * 
  * @param buffer the pre-allocated character buffer where the null-terminated PIN will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the PIN returned, excluding the null-terminator
+ * @returns the length of the PIN returned, excluding the null-terminator, or -1 if an error occurred
  */
 size_t bt_getModulePIN(char* buffer, size_t bufferLength);
 
@@ -358,7 +363,7 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse);
  * @param expectedResponsePrefix the prefix expected in the response to the command (e.g. "OK+Get:")
  * @param responseBuffer the pre-allocated character buffer where the null-terminated response will be stored
  * @param responseBufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the response returned, excluding the null-terminator
+ * @returns the length of the response returned, excluding the null-terminator, or -1 if an error occurred
  */
 size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength);
 
@@ -370,6 +375,16 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
  *                                                                   
  *                          (UART and I/O)
  */
+
+/**
+ * This function determines if the Bluetooth module is currently
+ * connected to a remote device.  It uses an internal flag set by
+ * the internal software UART logic, so it does not require any
+ * UART transmissions to determine connectivity.
+ *
+ * @return uint8_t 1 if a remote device is connected, 0 otherwise
+ */
+uint8_t bt_connected();
 
 /**
  * This function checks to see if a byte of data is available
@@ -447,7 +462,7 @@ void bt_writeString(const char* string);
  * @param delimiter the character that ends a string from the UART stream (e.g. "\n", "\0", etc.)
  * @param buffer the pre-allocated character buffer where the null-terminated string will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the string read from the stream, excluding the null-terminator
+ * @returns the length of the string read from the stream, excluding the null-terminator, or -1 if an error occurred
  */
 size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength);
 
