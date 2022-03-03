@@ -17,7 +17,18 @@
  *                                      (Constants and Macros)
  */
 
-
+// Define the connection/disconnection handler prototypes
+// These can be used as follows:
+//   BT_ON_CONNECTION { /* ... */ }
+// The handlers are called from within the UART interrupt
+// service routine, so they should be designed accordingly.
+//
+// In order to use these handlers, they must be enabled
+// by setting BT_ENABLE_CONNECTION_HANDLER or
+// BT_ENABLE_DISCONNECTION_HANDLER to 1 in the
+// bluetooth_settings.h file.
+#define BT_ON_CONNECTION    void bt_handler_onConnection()
+#define BT_ON_DISCONNECTION void bt_handler_onDisconnection()
 
 /*
  *    ___              __  _                         _    _            

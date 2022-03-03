@@ -37,6 +37,12 @@
 // Define the baud rate to be used by the UART stream to the Bluetooth module
 #define BT_BAUD_RATE 9600
 
+// Define whether the connection and disconnection handlers should be enabled
+// If BT_ENABLE_CONNECTION_HANDLER is enabled, BT_ON_CONNECTION { /* ... */ } must be defined
+// If BT_ENABLE_DISCONNECTION_HANDLER is enabled, BT_ON_DISCONNECTION { /* ... */ } must be defined
+#define BT_ENABLE_CONNECTION_HANDLER    1
+#define BT_ENABLE_DISCONNECTION_HANDLER 1
+
 // Define the maximum number of attempts the library will make to connect/communicate
 // with the Bluetooth module before it registers a failure/error
 #define BT_MAXIMUM_ATTEMPTS 10

@@ -6,9 +6,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "bluetooth.h"
-#include "bluetooth_internal.h"
 #include "bluetooth_settings.h"
+#include "bluetooth_internal.h"
+#include "bluetooth.h"
 
 /*
  *    ___              __  _                         _    _            
