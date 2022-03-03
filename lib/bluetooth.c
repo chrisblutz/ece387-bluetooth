@@ -333,7 +333,7 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
         while (bt_available())
             bt_read();
         
-        // Check that the required prefix is present, and if not, return 0
+        // Check that the required prefix is present, and if not, return -1
         if (strprefix(buffer, expectedResponsePrefix)) {
             // Copy the remaining part of the response into the provided response buffer
             size_t prefixLength = strlen(expectedResponsePrefix);
@@ -343,9 +343,10 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
             responseBuffer[responseBufferEnd] = '\0';
             return responseBufferEnd;
         } else {
-            return 0;
+            return -1;
         }
     } else {
+        responseBuffer[0] = '\0';
         return 0;
     }
 }
