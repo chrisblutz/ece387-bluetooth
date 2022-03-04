@@ -71,7 +71,10 @@
 
 // Define the length of time (in milliseconds) that the UART stream will wait
 // when bt_awaitAvailable() is called before determining no further data is
-// being sent
+// being sent.
+//   Note: Setting this value too low may result in strings not being received
+//         in full if there is a slight delay between when the Bluetooth module
+//         sends each bit
 #define BT_UART_PACKET_WAIT_MS 50
 
 #endif // BLUETOOTH_SETTINGS_H

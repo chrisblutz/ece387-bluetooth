@@ -67,7 +67,7 @@
 
 // Define the number of ticks required for bt_awaitAvailable() to
 // wait the number of milliseconds specified by BT_UART_PACKET_WAIT_MS
-#define BT_UART_PACKET_WAIT_TICKS ((F_CPU / BT_TIMER_PRESCALE_VALUE / BT_TIMER_TOP) * (BT_UART_PACKET_WAIT_MS / 1000))
+#define BT_UART_PACKET_WAIT_TICKS (((F_CPU / BT_TIMER_PRESCALE_VALUE / BT_TIMER_TOP) * BT_UART_PACKET_WAIT_MS) / 1000)
 
 // Define macros to turn on/off the UART TX pin, and to get the UART RX pin state
 #define bt_uartSetTxLow()  (BT_TX_PORT &= ~(1 << BT_TX_BIT))

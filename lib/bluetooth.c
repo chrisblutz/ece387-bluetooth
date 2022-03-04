@@ -395,7 +395,7 @@ volatile static uint8_t  uartTxBitsRemaining;
 // 10 bits long, so need 16-bit value instead of 8
 volatile static uint16_t uartTxBitBuffer;
 // Number of ticks since we last saw data (max of BT_UART_PACKET_WAIT_TICKS)
-volatile static uint8_t  uartPacketWaitTimer = 0;
+volatile static uint16_t  uartPacketWaitTimer = 0;
 
 // This ISR runs reach time the timer overflows, which happens at 3x the specified baud rate
 ISR(BT_TIMER_INTERRUPT_VECTOR) {
