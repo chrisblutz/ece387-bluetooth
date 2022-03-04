@@ -33,7 +33,9 @@
 
 // This global tracks whether we've completed enough connection polls to determine
 // if we're connected to a remote device (start at 4, when we hit 0 we can finish setup)
-volatile uart8_t uartInitialConnectionCheckCountdown = 4;
+volatile uint8_t uartInitialConnectionCheckCountdown = 4;
+// This global gets incremented every millisecond to allow for timeouts (set to 0 then count until desired)
+volatile uint32_t uartMillisecondCounter = 0;
 
 uint8_t bt_setup() {
     // Initialize the software UART stream
@@ -275,6 +277,50 @@ uint8_t bt_reset() {
 // AT+TCON
 
 // AT+TYPE
+uint8_t bt_getAuthenticationType(uint8_t* type) {
+    // Send the AT+PASS? command (expecting OK+Get: to prefix the response)
+    char buffer[2]; // 1 digit + '\0'
+    uint8_t success = bt_sendATQuery("AT+TYPE?", "OK+Get:", buffer, 2);
+
+    // If the command succeeded, parse it to the appropriate integer value
+    if (success) {
+        // Parse character to integer value and return
+        switch (buffer[0]) {
+            case '0':
+                *type = BT_AUTH_TYPE_NONE;
+                break;
+            case '1':
+                *type = BT_AUTH_TYPE_ENCRYPTED_LINK;
+                break;
+            case '2':
+                *type = BT_AUTH_TYPE_MITM_PROTECTED_LINK;
+                break;
+            case '3':
+                *type = BT_AUTH_TYPE_SECURE_CONNECTION_LINK;
+                break;
+            default:
+                // Since we didn't recognize the result, return 0
+                return 0;
+        }
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+uint8_t bt_setAuthenticationType(uint8_t type) {
+    // Check that the type is within bounds
+    if (type > 3)
+        return 0;
+
+    // Generate command and expected response
+    char command[9];
+    char response[9];
+    sprintf(command, "AT+TYPE%d", type);
+    sprintf(response, "OK+Set:%d", type);
+
+    return bt_sendATCommand(command, response);
+}
 
 // AT+UUID
 
@@ -295,10 +341,9 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
 
     bt_writeString(command);
 
-    // Wait for a response to become available, or the number of attempts is maxed out
-    size_t attemptCount = 0;
-    while (!bt_awaitAvailable() && attemptCount < BT_MAXIMUM_ATTEMPTS)
-        attemptCount++;
+    // Wait for a response to become available, or the timeout is exceeded
+    uartMillisecondCounter = 0;
+    while (!bt_available() && uartMillisecondCounter < BT_TIMEOUT_MS);
     
     // If we've received data, process it.  If not, return 0
     if (bt_available()) {
@@ -310,9 +355,15 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
                 break;
             expectedResponse++;
         }
+
         // Now that we've exhausted the expected response, make sure we don't have anything
         // else left in the stream.  If we do, read/dispose of it and return 0
         if (!bt_available() && !*expectedResponse) {
+            // Since the command completed successfully, wait for the defined time
+            // before returning for the change to take effect
+            uartMillisecondCounter = 0;
+            while (uartMillisecondCounter < BT_AT_SET_WAIT_TIME_MS);
+            // Now return after the wait period
             return 1;
         } else {
             // Read the rest of the available bytes so the stream is ready
@@ -329,14 +380,13 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
 size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength) {
     // If the module is connected to a remote device, return -1
     if (bt_connected())
-        return -1;
+        return 0;
 
     bt_writeString(command);
 
-    // Wait for a response to become available, or the number of attempts is maxed out
-    size_t attemptCount = 0;
-    while (!bt_awaitAvailable() && attemptCount < BT_MAXIMUM_ATTEMPTS)
-        attemptCount++;
+    // Wait for a response to become available, or the timeout is exceeded
+    uartMillisecondCounter = 0;
+    while (!bt_available() && uartMillisecondCounter < BT_TIMEOUT_MS);
     
     // If we've received data, process it.  If not, return 0
     if (bt_available()) {
@@ -345,6 +395,7 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
         size_t bufferIndex = 0;
         while (bt_awaitAvailable() && bufferIndex < BT_AT_RESPONSE_BUFFER_LENGTH)
             buffer[bufferIndex++] = (char) bt_read();
+        buffer[bufferIndex] = '\0';
 
         // If we get enough data to overflow our buffer, read and dispose of the rest of the input
         // so the UART stream can process future commands/input
@@ -408,6 +459,8 @@ volatile static uint16_t uartTxBitBuffer;
 volatile static uint16_t uartPacketWaitTimer = 0;
 // Number of ticks since we last performed a state check (max of BT_UART_STATE_CHECK_TICKS)
 volatile static uint16_t uartStateCheckTimer = 0;
+// Number of ticks since we last incremented the millisecond counter (max of BT_UART_MILLISECOND_TICKS)
+volatile static uint16_t uartMillisecondCountTimer = 0;
 // Each bit represents the status of the Bluetooth state (smaller positions indicate newer times)
 volatile static uint16_t uartConnectionState = 0;
 // Track previous state of the connection (so we can fire handlers if the next state does not match)
@@ -505,13 +558,22 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
         }
     }
 
+    // Increment the millisecond counter if 1ms has elapsed
+    if (uartMillisecondCountTimer++ == BT_UART_MILLISECOND_TICKS) {
+        // Reset timer
+        uartMillisecondCountTimer = 0;
+
+        // Increment the millisecond counter
+        uartMillisecondCounter++;
+    }
+
     // Check the status of the Bluetooth state if we've reached the threshold of the timer
     if (uartStateCheckTimer++ == BT_UART_STATE_CHECK_TICKS) {
         // Reset timer
         uartStateCheckTimer = 0;
 
         // Check the state of the module
-        uartConnectionState = (uartConnectionState << 1) | (bt_uartGetState() > 0);
+        uartConnectionState = (uartConnectionState << 1) | (bt_uartGetState() != 0);
 
         // Check for changes in connection state (and if handlers are enabled, run them)
         uartPrevConnected = uartConnected;

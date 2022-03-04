@@ -20,6 +20,11 @@
  *                                      (Constants and Macros)
  */
 
+// Define the time in milliseconds to wait after an AT command before returning
+// If this time is too short, subsequent calls to the bt_get* may return incorrect
+// values
+#define BT_AT_SET_WAIT_TIME_MS 400
+
 // Define the length of the AT command response buffer
 #define BT_AT_RESPONSE_BUFFER_LENGTH 50
 
@@ -71,6 +76,9 @@
 
 // Define the number of ticks required between state checks to allow for 0.25sec intervals
 #define BT_UART_STATE_CHECK_TICKS (((F_CPU / BT_TIMER_PRESCALE_VALUE / BT_TIMER_TOP) * 250) / 1000)
+
+// Define the number of ticks required for 1ms to pass
+#define BT_UART_MILLISECOND_TICKS ((F_CPU / BT_TIMER_PRESCALE_VALUE / BT_TIMER_TOP) / 1000)
 
 // Define macros to turn on/off the UART TX pin, and to get the UART RX pin state
 #define bt_uartSetTxLow()  (BT_TX_PORT &= ~(1 << BT_TX_BIT))

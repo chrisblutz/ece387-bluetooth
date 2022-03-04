@@ -18,6 +18,27 @@
  *                                      (Constants and Macros)
  */
 
+/*
+ * ------------------------------------------------------------------------
+ * These constants are used by the bt_[get/set]AuthenticationType function:
+ * ------------------------------------------------------------------------
+ */
+
+// No PIN code is set up (and none can be set)
+#define BT_AUTH_TYPE_NONE                   0
+// An encrypted link is required (no man-in-the-middle protection)
+#define BT_AUTH_TYPE_ENCRYPTED_LINK         1
+// An encrypted link is required (with man-in-the-middle protection)
+#define BT_AUTH_TYPE_MITM_PROTECTED_LINK    2
+// An secure, encrypted link is required (with man-in-the-middle protection)
+#define BT_AUTH_TYPE_SECURE_CONNECTION_LINK 3
+
+/*
+ * ----------------------------------------------------------------
+ * These constants/macros are for the UART stream and connectivity:
+ * ----------------------------------------------------------------
+ */
+
 // Define the connection/disconnection handler prototypes
 // These can be used as follows:
 //   BT_ON_CONNECTION { /* ... */ }
@@ -105,7 +126,7 @@ uint8_t bt_test();
  * 
  * @param buffer the pre-allocated character buffer where the null-terminated address will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the address returned, excluding the null-terminator, or -1 if an error occurred
+ * @returns the length of the address returned, excluding the null-terminator
  */
 size_t bt_getMACAddress(char* buffer, size_t bufferLength);
 
@@ -211,7 +232,7 @@ size_t bt_getMACAddress(char* buffer, size_t bufferLength);
  * 
  * @param buffer the pre-allocated character buffer where the null-terminated name will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the name returned, excluding the null-terminator, or -1 if an error occurred
+ * @returns the length of the name returned, excluding the null-terminator
  */
 size_t bt_getModuleName(char* buffer, size_t bufferLength);
 
@@ -247,9 +268,12 @@ uint8_t bt_setModuleName(const char* name);
  * 
  * It uses the "AT+PASS?" command to request the name.
  * 
+ * Note: this function will not work if the device is not set
+ * up to require some form of authentication.
+ * 
  * @param buffer the pre-allocated character buffer where the null-terminated PIN will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the PIN returned, excluding the null-terminator, or -1 if an error occurred
+ * @returns the length of the PIN returned, excluding the null-terminator
  */
 size_t bt_getModulePIN(char* buffer, size_t bufferLength);
 
@@ -325,7 +349,49 @@ uint8_t bt_reset();
 
 // AT+TCON
 
-// AT+TYPE
+/**
+ * This function retrieves the type of authentication
+ * used by the Bluetooth module.
+ *
+ * It uses the "AT+TYPE?" command to request the name.
+ *
+ * The possible results from this function are (least
+ * to most secure):
+ *  - BT_AUTH_TYPE_NONE                   (0)
+ *  - BT_AUTH_TYPE_ENCRYPTED_LINK         (1)
+ *  - BT_AUTH_TYPE_MITM_PROTECTED_LINK    (2)
+ *  - BT_AUTH_TYPE_SECURE_CONNECTION_LINK (3)
+ *
+ * The first two modes may not be supported by modern
+ * smartphones, so if you are unable to pair with your
+ * Bluetooth module, try one of the more secure options.
+ *
+ * @param type the pointer to the location where the type will be stored
+ * @returns 1 if the command ran successfully, 0 otherwise
+ */
+uint8_t bt_getAuthenticationType(uint8_t* type);
+
+/**
+ * This function sets the type of authentication used
+ * by the Bluetooth module.
+ *
+ * It uses the "AT+TYPE" command to set the name.
+ *
+ * The possible types are (least to most secure):
+ *  - BT_AUTH_TYPE_NONE                   (0)
+ *  - BT_AUTH_TYPE_ENCRYPTED_LINK         (1)
+ *  - BT_AUTH_TYPE_MITM_PROTECTED_LINK    (2)
+ *  - BT_AUTH_TYPE_SECURE_CONNECTION_LINK (3)
+ *
+ * The first two modes may not be supported by modern
+ * smartphones, so if you are unable to pair with your
+ * Bluetooth module, try one of the more secure options.
+ *
+ * @param type the authentication mode for the module
+ * @returns 1 if the command ran successfully, 0 otherwise
+ */
+uint8_t bt_setAuthenticationType(uint8_t type);
+
 
 // AT+UUID
 
@@ -370,7 +436,7 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse);
  * @param expectedResponsePrefix the prefix expected in the response to the command (e.g. "OK+Get:")
  * @param responseBuffer the pre-allocated character buffer where the null-terminated response will be stored
  * @param responseBufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the response returned, excluding the null-terminator, or -1 if an error occurred
+ * @returns the length of the response returned, excluding the null-terminator
  */
 size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength);
 
@@ -507,7 +573,7 @@ void bt_writeString(const char* string);
  * @param delimiter the character that ends a string from the UART stream (e.g. "\n", "\0", etc.)
  * @param buffer the pre-allocated character buffer where the null-terminated string will be stored
  * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the string read from the stream, excluding the null-terminator, or -1 if an error occurred
+ * @returns the length of the string read from the stream, excluding the null-terminator
  */
 size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength);
 

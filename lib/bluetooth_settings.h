@@ -70,9 +70,9 @@
 #define BT_ENABLE_CONNECTION_HANDLER    1
 #define BT_ENABLE_DISCONNECTION_HANDLER 1
 
-// Define the maximum number of attempts the library will make to connect/communicate
-// with the Bluetooth module before it registers a failure/error
-#define BT_MAXIMUM_ATTEMPTS 5
+// Define the timeout in milliseconds for connecting/communicating
+// with the Bluetooth module before the library registers a failure/error
+#define BT_TIMEOUT_MS 100
 
 // Define the length of time (in milliseconds) that the UART stream will wait
 // when bt_awaitAvailable() is called before determining no further data is
