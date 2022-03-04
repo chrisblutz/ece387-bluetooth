@@ -67,7 +67,7 @@
 
 // Define the number of ticks required before the bt_available() function is able
 // to determine that no further data is being sent
-#define BT_UART_CONCURRENT_CHECK_LIMIT 3
+#define BT_UART_CONCURRENT_CHECK_LIMIT (6 * BT_UART_RX_BITS)
 
 #define bt_uartSetTxLow()  (BT_TX_PORT &= ~(1 << BT_TX_BIT))
 #define bt_uartSetTxHigh() (BT_TX_PORT |= (1 << BT_TX_BIT))

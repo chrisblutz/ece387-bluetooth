@@ -12,9 +12,6 @@
 #include "bluetooth_internal.h"
 #include "bluetooth.h"
 
-// TODO Remove
-#include "USART.h"
-
 /*
  *    ___              __  _                         _    _            
  *   / __| ___  _ _   / _|(_) __ _  _  _  _ _  __ _ | |_ (_) ___  _ _  
@@ -55,10 +52,6 @@ uint8_t bt_test() {
 
 size_t bt_getMACAddress(char* buffer, size_t bufferLength) {
     // Send the AT+ADDR? command (expecting OK+ADDR: to prefix the response)
-    char buf[4];
-    itoa(BT_TIMER_TOP, buf, 10);
-    printString(buf);
-    printString("Send\n");
     return bt_sendATQuery("AT+ADDR?", "OK+ADDR:", buffer, bufferLength);
 }
 
@@ -291,7 +284,7 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
 
     // Wait for a response to become available, or the number of attempts is maxed out
     size_t attemptCount = 0;
-    while (!bt_awaitAvailable() && attemptCount < BT_MAXIMUM_ATTEMPTS)
+    while (!bt_available() && attemptCount < BT_MAXIMUM_ATTEMPTS)
         attemptCount++;
     
     // If we've received data, process it.  If not, return 0
@@ -325,38 +318,25 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
     if (bt_connected())
         return -1;
 
-    printString("Write\n");
     bt_writeString(command);
 
     // Wait for a response to become available, or the number of attempts is maxed out
-    printString("Wait\n");
     size_t attemptCount = 0;
-    while (!bt_awaitAvailable() && attemptCount < BT_MAXIMUM_ATTEMPTS)
+    while (!bt_available() && attemptCount < BT_MAXIMUM_ATTEMPTS)
         attemptCount++;
     
-    printString("Avail\n");
     // If we've received data, process it.  If not, return 0
     if (bt_available()) {
         // Read the data into a buffer so we can manipulate it later
         char buffer[BT_AT_RESPONSE_BUFFER_LENGTH];
         size_t bufferIndex = 0;
-        while (bt_awaitAvailable() && bufferIndex < BT_AT_RESPONSE_BUFFER_LENGTH) {
+        while (bt_awaitAvailable() && bufferIndex < BT_AT_RESPONSE_BUFFER_LENGTH)
             buffer[bufferIndex++] = (char) bt_read();
-            transmitByte(buffer[bufferIndex - 1]);
-        }
-        transmitByte('\n');
-        printString("Done\n");
 
         // If we get enough data to overflow our buffer, read and dispose of the rest of the input
         // so the UART stream can process future commands/input
-        while (bt_awaitAvailable()) {
-            uint8_t b = bt_read();
-            char buf[4];
-            itoa(b, buf, 10);
-            printString(buf);
-            transmitByte(' ');
-        }
-        printString("Clear\n");
+        while (bt_awaitAvailable())
+            bt_read();
         
         // Check that the required prefix is present, and if not, return -1
         if (strprefix(buffer, expectedResponsePrefix)) {
@@ -366,7 +346,6 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
             size_t responseBufferEnd = min(responseLength, responseBufferLength - 1);
             strncpy(responseBuffer, buffer + strlen(expectedResponsePrefix), responseBufferEnd);
             responseBuffer[responseBufferEnd] = '\0';
-            printString("Exit\n");
             return responseBufferEnd;
         } else {
             return -1;
@@ -460,12 +439,12 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
                 uartRxBitsRemaining = BT_UART_RX_BITS;
                 uartReceiverMask = 1;
                 uartConcurrencyCheck = 0;
-            }/* else {
+            } else {
                 // Since we didn't receive the start bit, increment the concurrency check
                 // so we can determine if any more data is being sent
                 if (uartConcurrencyCheck < BT_UART_CONCURRENT_CHECK_LIMIT)
                     uartConcurrencyCheck++;
-            }*/
+            }
         } else {
             counter = uartReceiverCounter;
             if (--counter == 0) {
@@ -487,6 +466,7 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
     }
 }
 
+
 uint8_t bt_connected() {
     return 0; // TODO
 }
@@ -502,24 +482,10 @@ uint8_t bt_awaitAvailable() {
     // reading a byte.  If so, wait for that bit to
     // be received
     if (uartBufferInputIndex != uartBufferReadIndex) {
-        char buf[4];
-        itoa(uartBufferInputIndex, buf, 10);
-        printString(buf);
-        transmitByte(' ');
-        itoa(uartBufferReadIndex, buf, 10);
-        printString(buf);
-        transmitByte('|');
         return 1;
     } else {
         // Wait for the receiver to finish reading a byte (if it currently is) and wait for the concurrency check to run
-        while ((uartReceiverBusy/* || uartConcurrencyCheck < BT_UART_CONCURRENT_CHECK_LIMIT*/) && (uartBufferInputIndex == uartBufferReadIndex));
-        char buf[4];
-        itoa(uartBufferInputIndex, buf, 10);
-        printString(buf);
-        transmitByte(' ');
-        itoa(uartBufferReadIndex, buf, 10);
-        printString(buf);
-        transmitByte('|');
+        while ((uartReceiverBusy || uartConcurrencyCheck < BT_UART_CONCURRENT_CHECK_LIMIT) && (uartBufferInputIndex == uartBufferReadIndex));
 
         // Now that the receiver is done or has read a bit, check again for availability
         return uartBufferInputIndex != uartBufferReadIndex;
@@ -589,6 +555,12 @@ void bt_initializeUART() {
     // Initialize pins/timer used for UART
     bt_initializeUARTPins();
     bt_initializeUARTTimer();
+}
+
+void bt_flush() {
+    // Reset read indexes
+    uartBufferInputIndex = 0;
+    uartBufferReadIndex = 0;
 }
 
 /*

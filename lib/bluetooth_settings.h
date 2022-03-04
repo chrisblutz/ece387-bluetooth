@@ -18,14 +18,14 @@
 #define F_CPU 16000000
 
 // Define the PINX, DDRX, and PX# values for the RX pin
-#define BT_RX_PIN  PINB
-#define BT_RX_DDR  DDRB
-#define BT_RX_BIT  PB3
+#define BT_RX_PIN  PIND
+#define BT_RX_DDR  DDRD
+#define BT_RX_BIT  PD3
 
 // Define the PORTX, DDRX, and PX# values for the TX pin
-#define BT_TX_PORT PORTB
-#define BT_TX_DDR  DDRB
-#define BT_TX_BIT  PB2
+#define BT_TX_PORT PORTD
+#define BT_TX_DDR  DDRD
+#define BT_TX_BIT  PD2
 
 // Define the timer information used for the UART stream
 // * These defaults are for the 8-bit TIMER0, with a prescalar of 8

@@ -446,6 +446,12 @@ void bt_write(const uint8_t byte);
  */
 uint8_t bt_read();
 
+/**
+ * This function resets the input buffers and removes any
+ * unprocessed input.
+ */
+void bt_flush();
+
 /*
  *   ___    __ ___      _   _  _    _  _  _  _    _          
  *  |_ _|  / // _ \    | | | || |_ (_)| |(_)| |_ (_) ___  ___
