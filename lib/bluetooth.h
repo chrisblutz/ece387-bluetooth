@@ -57,6 +57,12 @@
  * 
  * As the UART stream requires interrupts, this function
  * enables them using sei().
+ * 
+ * Also, this function blocks until the initial connection
+ * status of the module can be determined (so it is not
+ * marked as disconnected incorrectly initially), so it may
+ * take up to a second to exit.  Calls to bt_connected()
+ * will return the correct value after this function exits.
  *
  * @returns 1 if the setup was completed successfully, 0 otherwise
  */

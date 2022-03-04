@@ -31,12 +31,19 @@
  * ---------------------------------------------------------------
  */
 
+// This global tracks whether we've completed enough connection polls to determine
+// if we're connected to a remote device (start at 4, when we hit 0 we can finish setup)
+volatile uart8_t uartInitialConnectionCheckCountdown = 4;
+
 uint8_t bt_setup() {
     // Initialize the software UART stream
     bt_initializeUART();
 
     // Enable interrupts so that we can handle UART data
     sei();
+
+    // Wait until the initial connection status of the module has been determined
+    while (uartInitialConnectionCheckCountdown);
 
     return 1;
 }
@@ -517,6 +524,10 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
             if (uartPrevConnected && !uartConnected)
                 BT_DISCONNECTION_HANDLER();
         #endif
+
+        // Decrement the initial connection check counter if it's not at 0
+        if (uartInitialConnectionCheckCountdown)
+            uartInitialConnectionCheckCountdown--;
     }
 }
 
