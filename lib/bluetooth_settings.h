@@ -15,7 +15,9 @@
  */
 
 // Define the general board information
-#define F_CPU 16000000
+#ifndef F_CPU
+    #define F_CPU 16000000
+#endif
 
 // Define the PINX, DDRX, and PX# values for the RX pin
 #define BT_RX_PIN  PIND
