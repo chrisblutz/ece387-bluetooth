@@ -30,7 +30,7 @@
 // Define the timer information used for the UART stream
 // * These defaults are for the 8-bit TIMER0, with a prescalar of 8
 // * BT_TIMER_MAXIMUM_VALUE should be set to (2^[bit width])-1
-#define BT_TIMER_MAXIMUM_VALUE           (255)
+#define BT_TIMER_MAXIMUM_VALUE           255
 #define BT_TIMER_INTERRUPT_VECTOR        TIMER0_COMPA_vect
 #define BT_TIMER_COMPARE_REGISTER        OCR0A
 #define BT_TIMER_CONTROL_REGISTER_A      TCCR0A
@@ -39,9 +39,9 @@
 #define BT_TIMER_INTERRUPT_MASK_REGISTER TIMSK0
 #define BT_TIMER_INTERRUPT_ENABLE_MASK   (1 << OCIE0A)
 #define BT_TIMER_CONTROL_REGISTER_A_MASK (1 << WGM01)
-#define BT_TIMER_CONTROL_REGISTER_B_MASK (0)
-#define BT_TIMER_PRESCALE_VALUE          (8)
-#define BT_TIMER_PRESCALER_REG_A_MASK    (0)
+#define BT_TIMER_CONTROL_REGISTER_B_MASK 0
+#define BT_TIMER_PRESCALE_VALUE          8
+#define BT_TIMER_PRESCALER_REG_A_MASK    0
 #define BT_TIMER_PRESCALER_REG_B_MASK    (1 << CS01)
 
 /*
@@ -66,5 +66,10 @@
 // Define the maximum number of attempts the library will make to connect/communicate
 // with the Bluetooth module before it registers a failure/error
 #define BT_MAXIMUM_ATTEMPTS 10
+
+// Define the length of time (in milliseconds) that the UART stream will wait
+// when bt_awaitAvailable() is called before determining no further data is
+// being sent
+#define BT_UART_PACKET_WAIT_MS 50
 
 #endif // BLUETOOTH_SETTINGS_H

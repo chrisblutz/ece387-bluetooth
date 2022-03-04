@@ -32,6 +32,9 @@ uint8_t bt_setup() {
     // Initialize the software UART stream
     bt_initializeUART();
 
+    // Enable interrupts so that we can handle UART data
+    sei();
+
     return 1;
 }
 
@@ -299,7 +302,7 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
         }
         // Now that we've exhausted the expected response, make sure we don't have anything
         // else left in the stream.  If we do, read/dispose of it and return 0
-        if (!bt_awaitAvailable() && !*expectedResponse) {
+        if (!bt_available() && !*expectedResponse) {
             return 1;
         } else {
             // Read the rest of the available bytes so the stream is ready
@@ -335,13 +338,14 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
 
         // If we get enough data to overflow our buffer, read and dispose of the rest of the input
         // so the UART stream can process future commands/input
-        while (bt_awaitAvailable())
-            bt_read();
+        if (bt_available())
+            while (bt_awaitAvailable())
+                bt_read();
         
+        size_t prefixLength = strlen(expectedResponsePrefix);
         // Check that the required prefix is present, and if not, return -1
-        if (strprefix(buffer, expectedResponsePrefix)) {
+        if (strncmp(buffer, expectedResponsePrefix, prefixLength) == 0) {
             // Copy the remaining part of the response into the provided response buffer
-            size_t prefixLength = strlen(expectedResponsePrefix);
             size_t responseLength = strlen(buffer) - prefixLength;
             size_t responseBufferEnd = min(responseLength, responseBufferLength - 1);
             strncpy(responseBuffer, buffer + strlen(expectedResponsePrefix), responseBufferEnd);
@@ -368,25 +372,45 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
  *                https://github.com/blalor/avr-softuart
  */
 
-// Initialize globals required for software UART
-volatile static uint8_t  uartInputBuffer[BT_UART_RX_BUFFER_LENGTH];
-volatile static uint8_t  uartBufferInputIndex;
-static uint8_t           uartBufferReadIndex;
-volatile static uint8_t  uartReceiverBusy;
-volatile static uint8_t  uartTransmitterBusy;
-volatile static uint8_t  uartTransmitterCounter;
-volatile static uint8_t  uartTxBitsRemaining;
-volatile static uint16_t uartTxBitBuffer; // 10 bits long, so need 16-bit value instead of 8
-volatile static uint8_t  uartConcurrencyCheck = 0;
+/*
+ * -----------------------------------------------------------------------------------
+ * Globals and interrupt service routine (ISR) for software UART transmitter/receiver:
+ * -----------------------------------------------------------------------------------
+ */
 
+// Input data will be stored to/read from this buffer
+volatile static uint8_t  uartInputBuffer[BT_UART_RX_BUFFER_LENGTH];
+// The index of the "write" head of the buffer
+volatile static uint8_t  uartBufferInputIndex;
+// The index of the "read" head of the buffer
+static uint8_t           uartBufferReadIndex;
+// 1 if we're receiving data, 0 otherwise
+volatile static uint8_t  uartReceiverBusy;
+// 1 if we're transmitting data, 0 otherwise
+volatile static uint8_t  uartTransmitterBusy;
+// Counter to rectify the baud rate (since we're ticking at 3x baud rate)
+volatile static uint8_t  uartTransmitterCounter;
+// Number of transmission bits left to send
+volatile static uint8_t  uartTxBitsRemaining;
+// 10 bits long, so need 16-bit value instead of 8
+volatile static uint16_t uartTxBitBuffer;
+// Number of ticks since we last saw data (max of BT_UART_PACKET_WAIT_TICKS)
+volatile static uint8_t  uartPacketWaitTimer = 0;
+
+// This ISR runs reach time the timer overflows, which happens at 3x the specified baud rate
 ISR(BT_TIMER_INTERRUPT_VECTOR) {
-    // Define internal values for the ISR
+    // 1 if we're waiting for the stop bit for a packet
     static uint8_t uartAwaitingStopBit = 0;
+    // Tracks the current bit position in the receiving buffer
     static uint8_t uartReceiverMask;
+    // Counter to rectify the baud rate (since we're ticking at 3x baud rate)
     static uint8_t uartReceiverCounter;
+    // Number of bits left to be received in the current packet
     static uint8_t uartRxBitsRemaining;
+    // Buffer to store the byte currently being constructed
     static uint8_t uartRxBitBuffer;
 
+    // Temporary variable to store counters for operations
     uint8_t counter;
 
     // Send data from the output buffer (if there is data to send)
@@ -422,8 +446,8 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
             if (++uartBufferInputIndex >= BT_UART_RX_BUFFER_LENGTH)
                 uartBufferInputIndex = 0;
             
-            // Reset the UART concurrency check
-            uartConcurrencyCheck = 0;
+            // Reset the UART packet wait timer
+            uartPacketWaitTimer = 0;
             
             // TODO - do logic regarding checking for connection/disconnection, availability, etc.
         }
@@ -438,12 +462,12 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
                 uartReceiverCounter = 4;
                 uartRxBitsRemaining = BT_UART_RX_BITS;
                 uartReceiverMask = 1;
-                uartConcurrencyCheck = 0;
+                uartPacketWaitTimer = 0;
             } else {
-                // Since we didn't receive the start bit, increment the concurrency check
+                // Since we didn't receive the start bit, increment the packet wait timer
                 // so we can determine if any more data is being sent
-                if (uartConcurrencyCheck < BT_UART_CONCURRENT_CHECK_LIMIT)
-                    uartConcurrencyCheck++;
+                if (uartPacketWaitTimer < BT_UART_PACKET_WAIT_TICKS)
+                    uartPacketWaitTimer++;
             }
         } else {
             counter = uartReceiverCounter;
@@ -466,59 +490,11 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
     }
 }
 
-
-uint8_t bt_connected() {
-    return 0; // TODO
-}
-
-uint8_t bt_available() {
-    // Check if the most-recently read byte is the most recent input
-    return uartBufferInputIndex != uartBufferReadIndex;
-}
-
-uint8_t bt_awaitAvailable() {
-    // Check if there is a bit currently available,
-    // and if not, check if the receiver is currently
-    // reading a byte.  If so, wait for that bit to
-    // be received
-    if (uartBufferInputIndex != uartBufferReadIndex) {
-        return 1;
-    } else {
-        // Wait for the receiver to finish reading a byte (if it currently is) and wait for the concurrency check to run
-        while ((uartReceiverBusy || uartConcurrencyCheck < BT_UART_CONCURRENT_CHECK_LIMIT) && (uartBufferInputIndex == uartBufferReadIndex));
-
-        // Now that the receiver is done or has read a bit, check again for availability
-        return uartBufferInputIndex != uartBufferReadIndex;
-    }
-}
-
-void bt_write(const uint8_t byte) {
-    // Wait for the transmitter to finish its work
-    while (uartTransmitterBusy); // TODO - timeout?
-
-    // Set up transmitter to transmit the byte
-    uartTransmitterCounter = 3;
-    uartTxBitsRemaining = BT_UART_TX_BITS;
-    // Transform the byte into a UART packet
-    uartTxBitBuffer = (byte << 1) | 0x200;
-    // Notify transmitter there is a byte available
-    uartTransmitterBusy = 1;
-}
-
-uint8_t bt_read() {
-    // If we haven't read any new characters, return \0
-    if (uartBufferInputIndex == uartBufferReadIndex)
-        return 0;
-
-    // Pull the latest byte from the input buffer
-    uint8_t in = uartInputBuffer[uartBufferReadIndex];
-    // Increment the read index (wrapping if it exceeds the buffer size)
-    if (++uartBufferReadIndex >= BT_UART_RX_BUFFER_LENGTH)
-        uartBufferReadIndex = 0;
-    
-    // Return the byte
-    return in; 
-}
+/*
+ * ---------------------------------------------------------------------
+ * Internal utility functions for initializing the software UART stream:
+ * ---------------------------------------------------------------------
+ */
 
 void bt_initializeUARTPins() {
     // Set TX pin to output, and RX pin to input
@@ -555,6 +531,66 @@ void bt_initializeUART() {
     // Initialize pins/timer used for UART
     bt_initializeUARTPins();
     bt_initializeUARTTimer();
+}
+
+/*
+ * ------------------------------------------------------------
+ * Utility functions for manipulating the software UART stream:
+ * ------------------------------------------------------------
+ */
+
+uint8_t bt_connected() {
+    return 0; // TODO
+}
+
+uint8_t bt_available() {
+    // Check if the most-recently read byte is the most recent input
+    return uartBufferInputIndex != uartBufferReadIndex;
+}
+
+uint8_t bt_awaitAvailable() {
+    // Check if there is a bit currently available,
+    // and if not, check if the receiver is currently
+    // reading a byte.  If so, wait for that bit to
+    // be received
+    if (uartBufferInputIndex != uartBufferReadIndex) {
+        return 1;
+    } else {
+        // Wait for the receiver to finish reading a byte (if it currently is) and wait for the configured amount of time
+        // to verify there is no more data being sent
+        while ((uartReceiverBusy || uartPacketWaitTimer < BT_UART_PACKET_WAIT_TICKS) && (uartBufferInputIndex == uartBufferReadIndex));
+
+        // Now that the receiver is done or has read a bit, check again for availability
+        return uartBufferInputIndex != uartBufferReadIndex;
+    }
+}
+
+void bt_write(const uint8_t byte) {
+    // Wait for the transmitter to finish its work
+    while (uartTransmitterBusy); // TODO - timeout?
+
+    // Set up transmitter to transmit the byte
+    uartTransmitterCounter = 3;
+    uartTxBitsRemaining = BT_UART_TX_BITS;
+    // Transform the byte into a UART packet
+    uartTxBitBuffer = (byte << 1) | 0x200;
+    // Notify transmitter there is a byte available
+    uartTransmitterBusy = 1;
+}
+
+uint8_t bt_read() {
+    // If we haven't read any new characters, return \0
+    if (uartBufferInputIndex == uartBufferReadIndex)
+        return 0;
+
+    // Pull the latest byte from the input buffer
+    uint8_t in = uartInputBuffer[uartBufferReadIndex];
+    // Increment the read index (wrapping if it exceeds the buffer size)
+    if (++uartBufferReadIndex >= BT_UART_RX_BUFFER_LENGTH)
+        uartBufferReadIndex = 0;
+    
+    // Return the byte
+    return in; 
 }
 
 void bt_flush() {
@@ -597,28 +633,8 @@ size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength) {
     // If we've not reached the delimiter and there are still bytes available
     // (e.g. we overflowed the buffer), read the remaining bytes to clear the input
     // so the UART stream can handle further input
-    while (bt_awaitAvailable() && (input = bt_read()) != delimiter);
+    if (bt_available())
+        while (bt_awaitAvailable() && (input = bt_read()) != delimiter);
 
     return strlen(buffer);
-}
-
-/*
- *   ___       _                          _     
- *  |_ _| _ _ | |_  ___  _ _  _ _   __ _ | | ___
- *   | | | ' \|  _|/ -_)| '_|| ' \ / _` || |(_-<
- *  |___||_||_|\__|\___||_|  |_||_|\__,_||_|/__/
- *                                              
- *                   (Internals)
- */
-
-uint8_t strprefix(const char* str, const char* prefix) {
-    // Check that the prefix matches all characters in the string
-    // up to the end of the prefix
-    while (*prefix) {
-        if (!*str || *str != *prefix)
-            return 0;
-        str++;
-        prefix++;
-    }
-    return 1;
 }

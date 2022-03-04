@@ -54,6 +54,9 @@
  * Unlike other configuration functions, this one must be run
  * at the beginning of every program that uses the Bluetooth
  * module.
+ * 
+ * As the UART stream requires interrupts, this function
+ * enables them using sei().
  *
  * @returns 1 if the setup was completed successfully, 0 otherwise
  */

@@ -65,38 +65,30 @@
 // Define size of the UART receiver buffer
 #define BT_UART_RX_BUFFER_LENGTH 64
 
-// Define the number of ticks required before the bt_available() function is able
-// to determine that no further data is being sent
-#define BT_UART_CONCURRENT_CHECK_LIMIT (6 * BT_UART_RX_BITS)
+// Define the number of ticks required for bt_awaitAvailable() to
+// wait the number of milliseconds specified by BT_UART_PACKET_WAIT_MS
+#define BT_UART_PACKET_WAIT_TICKS ((F_CPU / BT_TIMER_PRESCALE_VALUE / BT_TIMER_TOP) * (BT_UART_PACKET_WAIT_MS / 1000))
 
+// Define macros to turn on/off the UART TX pin, and to get the UART RX pin state
 #define bt_uartSetTxLow()  (BT_TX_PORT &= ~(1 << BT_TX_BIT))
 #define bt_uartSetTxHigh() (BT_TX_PORT |= (1 << BT_TX_BIT))
 #define bt_uartGetRx()     (BT_RX_PIN & (1 << BT_RX_BIT))
 
+/**
+ * This function initializes the pins required for the software UART stream.
+ */
 void bt_initializeUARTPins();
 
+/**
+ * This function sets up the timer and interrupt required for the software
+ * UART stream. 
+ */
 void bt_initializeUARTTimer();
 
-void bt_initializeUART();
-
-/*
- *   _   _  _    _  _  _  _    _          
- *  | | | || |_ (_)| |(_)| |_ (_) ___  ___
- *  | |_| ||  _|| || || ||  _|| |/ -_)(_-<
- *   \___/  \__||_||_||_| \__||_|\___|/__/
- *                                        
- *               (Utilities)
- */
-
 /**
- * This function checks if a string has a specific prefix
- * (e.g. whether the first characters in a string match
- * the characters in another string).
- * 
- * @param str the complete string to check
- * @param prefix the prefix to check for
- * @returns 1 if the string has the provided prefix, 0 otherwise
+ * This function initializes the software UART stream and sets up the pins
+ * and interrupts required.
  */
-uint8_t strprefix(const char* str, const char* prefix);
+void bt_initializeUART();
 
 #endif // BLUETOOTH_INTERNAL_H
