@@ -12,6 +12,9 @@
 #include "bluetooth_internal.h"
 #include "bluetooth.h"
 
+// TODO - remove when done debugging
+#include "USART.h"
+
 /*
  *    ___              __  _                         _    _            
  *   / __| ___  _ _   / _|(_) __ _  _  _  _ _  __ _ | |_ (_) ___  _ _  
@@ -287,7 +290,7 @@ uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
 
     // Wait for a response to become available, or the number of attempts is maxed out
     size_t attemptCount = 0;
-    while (!bt_available() && attemptCount < BT_MAXIMUM_ATTEMPTS)
+    while (!bt_awaitAvailable() && attemptCount < BT_MAXIMUM_ATTEMPTS)
         attemptCount++;
     
     // If we've received data, process it.  If not, return 0
@@ -325,7 +328,7 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
 
     // Wait for a response to become available, or the number of attempts is maxed out
     size_t attemptCount = 0;
-    while (!bt_available() && attemptCount < BT_MAXIMUM_ATTEMPTS)
+    while (!bt_awaitAvailable() && attemptCount < BT_MAXIMUM_ATTEMPTS)
         attemptCount++;
     
     // If we've received data, process it.  If not, return 0
@@ -395,7 +398,15 @@ volatile static uint8_t  uartTxBitsRemaining;
 // 10 bits long, so need 16-bit value instead of 8
 volatile static uint16_t uartTxBitBuffer;
 // Number of ticks since we last saw data (max of BT_UART_PACKET_WAIT_TICKS)
-volatile static uint16_t  uartPacketWaitTimer = 0;
+volatile static uint16_t uartPacketWaitTimer = 0;
+// Number of ticks since we last performed a state check (max of BT_UART_STATE_CHECK_TICKS)
+volatile static uint16_t uartStateCheckTimer = 0;
+// Each bit represents the status of the Bluetooth state (smaller positions indicate newer times)
+volatile static uint16_t uartConnectionState = 0;
+// Track previous state of the connection (so we can fire handlers if the next state does not match)
+volatile static uint8_t  uartPrevConnected = 0;
+// Track current state of the connection (so we can fire handlers)
+volatile static uint8_t  uartConnected = 0;
 
 // This ISR runs reach time the timer overflows, which happens at 3x the specified baud rate
 ISR(BT_TIMER_INTERRUPT_VECTOR) {
@@ -448,8 +459,6 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
             
             // Reset the UART packet wait timer
             uartPacketWaitTimer = 0;
-            
-            // TODO - do logic regarding checking for connection/disconnection, availability, etc.
         }
     } else {
         // If we're not currently reading a byte, wait
@@ -488,6 +497,27 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
             uartReceiverCounter = counter;
         }
     }
+
+    // Check the status of the Bluetooth state if we've reached the threshold of the timer
+    if (uartStateCheckTimer++ == BT_UART_STATE_CHECK_TICKS) {
+        // Reset timer
+        uartStateCheckTimer = 0;
+
+        // Check the state of the module
+        uartConnectionState = (uartConnectionState << 1) | (bt_uartGetState() > 0);
+
+        // Check for changes in connection state (and if handlers are enabled, run them)
+        uartPrevConnected = uartConnected;
+        uartConnected = (uartConnectionState & 0x0F) == 0x0F;
+        #if BT_ENABLE_CONNECTION_HANDLER
+            if (!uartPrevConnected && uartConnected)
+                BT_CONNECTION_HANDLER();
+        #endif
+        #if BT_ENABLE_DISCONNECTION_HANDLER
+            if (uartPrevConnected && !uartConnected)
+                BT_DISCONNECTION_HANDLER();
+        #endif
+    }
 }
 
 /*
@@ -497,9 +527,10 @@ ISR(BT_TIMER_INTERRUPT_VECTOR) {
  */
 
 void bt_initializeUARTPins() {
-    // Set TX pin to output, and RX pin to input
+    // Set TX pin to output, and RX and State pins to input
     BT_TX_DDR |= (1 << BT_TX_BIT);
     BT_RX_DDR &= ~(1 << BT_RX_BIT);
+    BT_STATE_DDR &= ~(1 << BT_STATE_BIT);
 }
 
 void bt_initializeUARTTimer() {
@@ -540,7 +571,8 @@ void bt_initializeUART() {
  */
 
 uint8_t bt_connected() {
-    return 0; // TODO
+    // We're connected if the last 4 connection checks (across about 1 second) returned 1
+    return uartConnected;
 }
 
 uint8_t bt_available() {

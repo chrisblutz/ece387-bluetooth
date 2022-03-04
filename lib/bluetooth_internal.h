@@ -69,10 +69,14 @@
 // wait the number of milliseconds specified by BT_UART_PACKET_WAIT_MS
 #define BT_UART_PACKET_WAIT_TICKS (((F_CPU / BT_TIMER_PRESCALE_VALUE / BT_TIMER_TOP) * BT_UART_PACKET_WAIT_MS) / 1000)
 
+// Define the number of ticks required between state checks to allow for 0.25sec intervals
+#define BT_UART_STATE_CHECK_TICKS (((F_CPU / BT_TIMER_PRESCALE_VALUE / BT_TIMER_TOP) * 250) / 1000)
+
 // Define macros to turn on/off the UART TX pin, and to get the UART RX pin state
 #define bt_uartSetTxLow()  (BT_TX_PORT &= ~(1 << BT_TX_BIT))
 #define bt_uartSetTxHigh() (BT_TX_PORT |= (1 << BT_TX_BIT))
 #define bt_uartGetRx()     (BT_RX_PIN & (1 << BT_RX_BIT))
+#define bt_uartGetState()  (BT_STATE_PIN & (1 << BT_STATE_BIT))
 
 /**
  * This function initializes the pins required for the software UART stream.

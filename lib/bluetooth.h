@@ -382,9 +382,15 @@ size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, c
 
 /**
  * This function determines if the Bluetooth module is currently
- * connected to a remote device.  It uses an internal flag set by
- * the internal software UART logic, so it does not require any
+ * connected to a remote device.  It uses the state provided
+ * by the Bluetooth module , so it does not require any
  * UART transmissions to determine connectivity.
+ *
+ * However, due to the way that the state pin codifies connected
+ * vs. disconnected (always high for connected, alternating high/
+ * low every 0.5sec for disconnected) this function may not update
+ * its return value until about a second after the state has
+ * actually changed.
  *
  * @return uint8_t 1 if a remote device is connected, 0 otherwise
  */

@@ -20,14 +20,19 @@
 #endif
 
 // Define the PINX, DDRX, and PX# values for the RX pin
-#define BT_RX_PIN  PIND
-#define BT_RX_DDR  DDRD
-#define BT_RX_BIT  PD3
+#define BT_RX_PIN PIND
+#define BT_RX_DDR DDRD
+#define BT_RX_BIT PD3
 
 // Define the PORTX, DDRX, and PX# values for the TX pin
 #define BT_TX_PORT PORTD
 #define BT_TX_DDR  DDRD
 #define BT_TX_BIT  PD2
+
+// Define the PINX, DDRX, and PX# values for the State pin
+#define BT_STATE_PIN PIND
+#define BT_STATE_DDR DDRD
+#define BT_STATE_BIT PD4
 
 // Define the timer information used for the UART stream
 // * These defaults are for the 8-bit TIMER0, with a prescalar of 8
@@ -67,7 +72,7 @@
 
 // Define the maximum number of attempts the library will make to connect/communicate
 // with the Bluetooth module before it registers a failure/error
-#define BT_MAXIMUM_ATTEMPTS 10
+#define BT_MAXIMUM_ATTEMPTS 5
 
 // Define the length of time (in milliseconds) that the UART stream will wait
 // when bt_awaitAvailable() is called before determining no further data is

@@ -2,6 +2,7 @@
 
 ## Features
 - Software UART implementation to provide serial communication with the Bluetooth module
+  - Includes functions for determining data availability and connection status
 - Functions for module configuration (including setting module name, PIN code, etc.)
 - Utility functions for sending/receiving strings and other data types
 
@@ -62,4 +63,5 @@ See [the wiki page]() for a description of the different write and read function
 The software UART code is based on/modified from [this repository](https://github.com/blalor/avr-softuart).  To this code, I have:
 - Improved the coherence and legibility of constant and macro names (especially ones that are user-configurable)
 - Added logic to detect consecutive byte transmissions (useful for transmissions consisting of multiple bytes where there is no consistent termination point)
+- Added logic to determine if a remote device is connected (and allow handlers to run when one is connected/disconnected)
 - Added logic to transmit/receive additional data types (like strings)
