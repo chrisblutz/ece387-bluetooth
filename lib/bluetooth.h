@@ -9,6 +9,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "bluetooth_settings.h"
+
 /*
  *    ___                 _               _                          _     __  __                         
  *   / __| ___  _ _   ___| |_  __ _  _ _ | |_  ___    __ _  _ _   __| |   |  \/  | __ _  __  _ _  ___  ___
@@ -89,356 +91,222 @@
  */
 uint8_t bt_setup();
 
-/*
- * -------------------------------------------------------------------
- * These functions DO NOT need to be run each time the module is used:
- * -------------------------------------------------------------------
- */
-
-/**
- * This function pings the Bluetooth module to make sure that
- * all of the wiring is working correctly.
- * 
- * It uses the "AT" command to ping the module, and expects a
- * response of "OK".
- * 
- * Note: Calling this function while a device is connected to
- * the module will force that device to disconnect, and the "AT"
- * command will return "OK+LOST" instead.
- * 
- * @returns 1 if the module responds positively, 0 otherwise 
- */
-uint8_t bt_test();
-
-// AT+ADC
-
-/**
- * This function retrieves the MAC address for the
- * Bluetooth module.
- * 
- * If the response overflows the provided buffer, the response
- * will be truncated to fill the buffer, and the buffer will end
- * with a null-terminator regardless of if the response overflowed
- * it or not.
- * 
- * It uses the "AT+ADDR?" command to request the
- * address.
- * 
- * @param buffer the pre-allocated character buffer where the null-terminated address will be stored
- * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the address returned, excluding the null-terminator
- */
-size_t bt_getMACAddress(char* buffer, size_t bufferLength);
-
-// AT+ADVI
-
-// AT+ADTY
-
-// AT+ANCS
-
-// AT+ALLO
-
-// AT+AD
-
-// AT+BEFC
-
-// AT+AFTC
-
-// AT+BATC
-
-// AT+BATT
-
-// AT+BIT7
-
-// AT+BAUD
-
-// AT+COMI
-
-// AT+COMA
-
-// AT+COLA
-
-// AT+COSU
-
-// AT+COUP
-
-// AT+CHAR
-
-// AT+CLEAR
-
-// AT+CONNL
-
-// AT+CO
-
-// AT+COL
-
-// AT+CYC
-
-// AT+COMP
-
-// AT+DISC
-
-// AT+DISI
-
-// AT+CONN
-
-// AT+DELO
-
-// AT+ERASE
-
-// AT+FLAG
-
-// AT+FILT
-
-// AT_FIOW [FLOW?]
-
-// AT+GAIN
-
-// AT+HUMI
-
-// AT+IMME
-
-// AT+IBEA
-
-// AT+IBE0
-
-// AT+IBE1
-
-// AT+IBE2
-
-// AT+IBE3
-
-// AT+MARJ
-
-// AT+MINO
-
-// AT+MEAS
-
-// AT+MODE
-
-// AT+NOTI
-
-// AT+NOTP
-
-/**
- * This function retrieves the name of the Bluetooth module.
- * 
- * If the response overflows the provided buffer, the response
- * will be truncated to fill the buffer, and the buffer will end
- * with a null-terminator regardless of if the response overflowed
- * it or not.
- * 
- * It uses the "AT+NAME?" command to request the name.
- * 
- * @param buffer the pre-allocated character buffer where the null-terminated name will be stored
- * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the name returned, excluding the null-terminator
- */
-size_t bt_getModuleName(char* buffer, size_t bufferLength);
-
-/**
- * This function sets the name of the Bluetooth module.
- * The maximum length for a name is 12 characters.
- * If a name is provided that is more than 12 characters,
- * only the first 12 characters will be used.
- * 
- * It uses the "AT+NAME" command to set the name.
- * 
- * @param name the name for the module (max 12 characters)
- * @returns 1 if the command ran successfully, 0 otherwise
- */
-uint8_t bt_setModuleName(const char* name);
-
-// AT+PCTL
-
-// AT+PARI
-
-// AT+PIO1
-
-// AT+PIO
-
-/**
- * This function retrieves the PIN code for the Bluetooth module.
- * This will be used when connecting from a remote device.
- * 
- * If the response overflows the provided buffer, the response
- * will be truncated to fill the buffer, and the buffer will end
- * with a null-terminator regardless of if the response overflowed
- * it or not.
- * 
- * It uses the "AT+PASS?" command to request the name.
- * 
- * Note: this function will not work if the device is not set
- * up to require some form of authentication.
- * 
- * @param buffer the pre-allocated character buffer where the null-terminated PIN will be stored
- * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the PIN returned, excluding the null-terminator
- */
-size_t bt_getModulePIN(char* buffer, size_t bufferLength);
-
-/**
- * This function sets the PIN code for the Bluetooth module.
- * This will be used when connecting from a remote device, and
- * it must be 6 numeric digits.  If a PIN is provided that contains
- * more than 6 digits, only the first 6 digits will be used.
- * Conversely, if a PIN is provided that contains less than 6 digits,
- * zeros will be appended to the end of the PIN to fill the remaining
- * positions.
- * 
- * It uses the "AT+PASS" command to set the name.
- * 
- * @param name the PIN for the module (6 numeric digits)
- * @returns 1 if the command ran successfully, 0 otherwise
- */
-uint8_t bt_setModulePIN(const char* pin);
-
-// AT+POWE
-
-// AT+PWRM
-
-// AT+RELI
-
-/**
- * This function resets all Bluetooth module configurations
- * to their factory-default values.  To just perform a restart
- * of the module, use bt_reset().
- * 
- * It uses the "AT+RENEW" command to reset the configuration.
- * 
- * @returns 1 if the command ran successfully, 0 otherwise
- */
-uint8_t bt_resetFactoryDefaults();
-
-/**
- * This function restarts the Bluetooth module.  To reset
- * configurations to their factory-default settings, use
- * bt_resetFactoryDefaults().
- * 
- * It uses the "AT+RESET" command to restart the module.
- * 
- * @returns 1 if the command ran successfully, 0 otherwise
- */
-uint8_t bt_reset();
-
-// AT+ROLE
-
-// AT+RSSI
-
-// AT+RADD
-
-// AT+RAT
-
-// AT+STOP
-
-// AT+START
-
-// AT+SLEEP
-
-// AT+SAVE
-
-// AT+SCAN
-
-// AT+SENS
-
-// AT+SHOW
-
-// AT+TEHU
-
-// AT+TEMP
-
-// AT+TCON
-
-/**
- * This function retrieves the type of authentication
- * used by the Bluetooth module.
- *
- * It uses the "AT+TYPE?" command to request the name.
- *
- * The possible results from this function are (least
- * to most secure):
- *  - BT_AUTH_TYPE_NONE                   (0)
- *  - BT_AUTH_TYPE_ENCRYPTED_LINK         (1)
- *  - BT_AUTH_TYPE_MITM_PROTECTED_LINK    (2)
- *  - BT_AUTH_TYPE_SECURE_CONNECTION_LINK (3)
- *
- * The first two modes may not be supported by modern
- * smartphones, so if you are unable to pair with your
- * Bluetooth module, try one of the more secure options.
- *
- * @param type the pointer to the location where the type will be stored
- * @returns 1 if the command ran successfully, 0 otherwise
- */
-uint8_t bt_getAuthenticationType(uint8_t* type);
-
-/**
- * This function sets the type of authentication used
- * by the Bluetooth module.
- *
- * It uses the "AT+TYPE" command to set the name.
- *
- * The possible types are (least to most secure):
- *  - BT_AUTH_TYPE_NONE                   (0)
- *  - BT_AUTH_TYPE_ENCRYPTED_LINK         (1)
- *  - BT_AUTH_TYPE_MITM_PROTECTED_LINK    (2)
- *  - BT_AUTH_TYPE_SECURE_CONNECTION_LINK (3)
- *
- * The first two modes may not be supported by modern
- * smartphones, so if you are unable to pair with your
- * Bluetooth module, try one of the more secure options.
- *
- * @param type the authentication mode for the module
- * @returns 1 if the command ran successfully, 0 otherwise
- */
-uint8_t bt_setAuthenticationType(uint8_t type);
-
-
-// AT+UUID
-
-// AT+UART
-
-// AT+VERS
-
-/*
- * -----------------------------------------------------------------------------
- * These functions are utility functions for use within configuration functions:
- * -----------------------------------------------------------------------------
- */
-
-/**
- * This function sends a configuration command (AT command) to the Bluetooth
- * module, and waits until it receives a response (or times out).
- * 
- * This function only returns whether the command completed successfully, so
- * if information is needed in response to the command (like a return value),
- * use bt_sendATQuery().
- * 
- * @param command the command to send to the module
- * @param expectedResponse the response expected to the command (e.g. "OK")
- * @returns 1 if the command completed successfully, 0 otherwise
- */
-uint8_t bt_sendATCommand(const char* command, const char* expectedResponse);
-
-/**
- * This function queries data from the Bluetooth module using configuration
- * commands (AT commands), and waits until it receives a response (or times out).
- * 
- * This function expects additional information to be returned with the query
- * response, so if only the success/failure information is required, use
- * bt_sendATCommand().
- * 
- * If the response overflows the provided buffer, the response
- * will be truncated to fill the buffer, and the buffer will end
- * with a null-terminator regardless of if the response overflowed
- * it or not.
- * 
- * @param command the command to send to the module
- * @param expectedResponsePrefix the prefix expected in the response to the command (e.g. "OK+Get:")
- * @param responseBuffer the pre-allocated character buffer where the null-terminated response will be stored
- * @param responseBufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the response returned, excluding the null-terminator
- */
-size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength);
+// Allow for the configuration function toggle
+#if BT_ENABLE_CONFIGURATION_FUNCTIONS
+
+    /*
+    * -------------------------------------------------------------------
+    * These functions DO NOT need to be run each time the module is used:
+    * -------------------------------------------------------------------
+    */
+
+    /**
+     * This function pings the Bluetooth module to make sure that
+     * all of the wiring is working correctly.
+     * 
+     * It uses the "AT" command to ping the module, and expects a
+     * response of "OK".
+     * 
+     * Note: Calling this function while a device is connected to
+     * the module will force that device to disconnect, and the "AT"
+     * command will return "OK+LOST" instead.
+     * 
+     * @returns 1 if the module responds positively, 0 otherwise 
+     */
+    uint8_t bt_test();
+
+    /**
+     * This function retrieves the MAC address for the
+     * Bluetooth module.
+     * 
+     * If the response overflows the provided buffer, the response
+     * will be truncated to fill the buffer, and the buffer will end
+     * with a null-terminator regardless of if the response overflowed
+     * it or not.
+     * 
+     * It uses the "AT+ADDR?" command to request the
+     * address.
+     * 
+     * @param buffer the pre-allocated character buffer where the null-terminated address will be stored
+     * @param bufferLength the length of the pre-allocated buffer provided to this function
+     * @returns the length of the address returned, excluding the null-terminator
+     */
+    size_t bt_getMACAddress(char* buffer, size_t bufferLength);
+
+    // TODO - AT+BAUD (?)
+
+    /**
+     * This function retrieves the name of the Bluetooth module.
+     * 
+     * If the response overflows the provided buffer, the response
+     * will be truncated to fill the buffer, and the buffer will end
+     * with a null-terminator regardless of if the response overflowed
+     * it or not.
+     * 
+     * It uses the "AT+NAME?" command to request the name.
+     * 
+     * @param buffer the pre-allocated character buffer where the null-terminated name will be stored
+     * @param bufferLength the length of the pre-allocated buffer provided to this function
+     * @returns the length of the name returned, excluding the null-terminator
+     */
+    size_t bt_getModuleName(char* buffer, size_t bufferLength);
+
+    /**
+     * This function sets the name of the Bluetooth module.
+     * The maximum length for a name is 12 characters.
+     * If a name is provided that is more than 12 characters,
+     * only the first 12 characters will be used.
+     * 
+     * It uses the "AT+NAME" command to set the name.
+     * 
+     * @param name the name for the module (max 12 characters)
+     * @returns 1 if the command ran successfully, 0 otherwise
+     */
+    uint8_t bt_setModuleName(const char* name);
+
+
+    /**
+     * This function retrieves the PIN code for the Bluetooth module.
+     * This will be used when connecting from a remote device.
+     * 
+     * If the response overflows the provided buffer, the response
+     * will be truncated to fill the buffer, and the buffer will end
+     * with a null-terminator regardless of if the response overflowed
+     * it or not.
+     * 
+     * It uses the "AT+PASS?" command to request the name.
+     * 
+     * Note: this function will not work if the device is not set
+     * up to require some form of authentication.
+     * 
+     * @param buffer the pre-allocated character buffer where the null-terminated PIN will be stored
+     * @param bufferLength the length of the pre-allocated buffer provided to this function
+     * @returns the length of the PIN returned, excluding the null-terminator
+     */
+    size_t bt_getModulePIN(char* buffer, size_t bufferLength);
+
+    /**
+     * This function sets the PIN code for the Bluetooth module.
+     * This will be used when connecting from a remote device, and
+     * it must be 6 numeric digits.  If a PIN is provided that contains
+     * more than 6 digits, only the first 6 digits will be used.
+     * Conversely, if a PIN is provided that contains less than 6 digits,
+     * zeros will be appended to the end of the PIN to fill the remaining
+     * positions.
+     * 
+     * It uses the "AT+PASS" command to set the name.
+     * 
+     * @param name the PIN for the module (6 numeric digits)
+     * @returns 1 if the command ran successfully, 0 otherwise
+     */
+    uint8_t bt_setModulePIN(const char* pin);
+
+    /**
+     * This function resets all Bluetooth module configurations
+     * to their factory-default values.  To just perform a restart
+     * of the module, use bt_reset().
+     * 
+     * It uses the "AT+RENEW" command to reset the configuration.
+     * 
+     * @returns 1 if the command ran successfully, 0 otherwise
+     */
+    uint8_t bt_resetFactoryDefaults();
+
+    /**
+     * This function restarts the Bluetooth module.  To reset
+     * configurations to their factory-default settings, use
+     * bt_resetFactoryDefaults().
+     * 
+     * It uses the "AT+RESET" command to restart the module.
+     * 
+     * @returns 1 if the command ran successfully, 0 otherwise
+     */
+    uint8_t bt_reset();
+
+    /**
+     * This function retrieves the type of authentication
+     * used by the Bluetooth module.
+     *
+     * It uses the "AT+TYPE?" command to request the name.
+     *
+     * The possible results from this function are (least
+     * to most secure):
+     *  - BT_AUTH_TYPE_NONE                   (0)
+     *  - BT_AUTH_TYPE_ENCRYPTED_LINK         (1)
+     *  - BT_AUTH_TYPE_MITM_PROTECTED_LINK    (2)
+     *  - BT_AUTH_TYPE_SECURE_CONNECTION_LINK (3)
+     *
+     * The first two modes may not be supported by modern
+     * smartphones, so if you are unable to pair with your
+     * Bluetooth module, try one of the more secure options.
+     *
+     * @param type the pointer to the location where the type will be stored
+     * @returns 1 if the command ran successfully, 0 otherwise
+     */
+    uint8_t bt_getAuthenticationType(uint8_t* type);
+
+    /**
+     * This function sets the type of authentication used
+     * by the Bluetooth module.
+     *
+     * It uses the "AT+TYPE" command to set the name.
+     *
+     * The possible types are (least to most secure):
+     *  - BT_AUTH_TYPE_NONE                   (0)
+     *  - BT_AUTH_TYPE_ENCRYPTED_LINK         (1)
+     *  - BT_AUTH_TYPE_MITM_PROTECTED_LINK    (2)
+     *  - BT_AUTH_TYPE_SECURE_CONNECTION_LINK (3)
+     *
+     * The first two modes may not be supported by modern
+     * smartphones, so if you are unable to pair with your
+     * Bluetooth module, try one of the more secure options.
+     *
+     * @param type the authentication mode for the module
+     * @returns 1 if the command ran successfully, 0 otherwise
+     */
+    uint8_t bt_setAuthenticationType(uint8_t type);
+
+    /*
+    * -----------------------------------------------------------------------------
+    * These functions are utility functions for use within configuration functions:
+    * -----------------------------------------------------------------------------
+    */
+
+    /**
+     * This function sends a configuration command (AT command) to the Bluetooth
+     * module, and waits until it receives a response (or times out).
+     * 
+     * This function only returns whether the command completed successfully, so
+     * if information is needed in response to the command (like a return value),
+     * use bt_sendATQuery().
+     * 
+     * @param command the command to send to the module
+     * @param expectedResponse the response expected to the command (e.g. "OK")
+     * @returns 1 if the command completed successfully, 0 otherwise
+     */
+    uint8_t bt_sendATCommand(const char* command, const char* expectedResponse);
+
+    /**
+     * This function queries data from the Bluetooth module using configuration
+     * commands (AT commands), and waits until it receives a response (or times out).
+     * 
+     * This function expects additional information to be returned with the query
+     * response, so if only the success/failure information is required, use
+     * bt_sendATCommand().
+     * 
+     * If the response overflows the provided buffer, the response
+     * will be truncated to fill the buffer, and the buffer will end
+     * with a null-terminator regardless of if the response overflowed
+     * it or not.
+     * 
+     * @param command the command to send to the module
+     * @param expectedResponsePrefix the prefix expected in the response to the command (e.g. "OK+Get:")
+     * @param responseBuffer the pre-allocated character buffer where the null-terminated response will be stored
+     * @param responseBufferLength the length of the pre-allocated buffer provided to this function
+     * @returns the length of the response returned, excluding the null-terminator
+     */
+    size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength);
+#endif
 
 /*
  *   _   _   _    ___  _____                    _     ___    __ ___  

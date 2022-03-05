@@ -26,7 +26,7 @@
 #define BT_AT_SET_WAIT_TIME_MS 400
 
 // Define the length of the AT command response buffer
-#define BT_AT_RESPONSE_BUFFER_LENGTH 50
+#define BT_AT_RESPONSE_BUFFER_LENGTH 30
 
 // Define the names of connection/disconnection handler functions
 #define BT_CONNECTION_HANDLER    bt_handler_onConnection
@@ -68,7 +68,7 @@
 #define BT_UART_RX_BITS 8
 
 // Define size of the UART receiver buffer
-#define BT_UART_RX_BUFFER_LENGTH 64
+#define BT_UART_RX_BUFFER_LENGTH 32
 
 // Define the number of ticks required for bt_awaitAvailable() to
 // wait the number of milliseconds specified by BT_UART_PACKET_WAIT_MS

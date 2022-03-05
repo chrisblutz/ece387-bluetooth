@@ -87,4 +87,10 @@
 //  - 1 is little-endian, so the least significant bytes are read/written first
 #define BT_UART_ENDIANNESS 0
 
+// Enable/disable the AT command functions (these take up considerable space and
+// generally are only used for configuring the Bluetooth module.  You may want
+// to consider disabling this if you need more flash memory space and you don't
+// use any configuration commands)
+#define BT_ENABLE_CONFIGURATION_FUNCTIONS 1
+
 #endif // BLUETOOTH_SETTINGS_H

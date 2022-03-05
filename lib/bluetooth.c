@@ -12,9 +12,6 @@
 #include "bluetooth_internal.h"
 #include "bluetooth.h"
 
-// TODO - remove when done debugging
-#include "USART.h"
-
 /*
  *    ___              __  _                         _    _            
  *   / __| ___  _ _   / _|(_) __ _  _  _  _ _  __ _ | |_ (_) ___  _ _  
@@ -33,9 +30,14 @@
 
 // This global tracks whether we've completed enough connection polls to determine
 // if we're connected to a remote device (start at 4, when we hit 0 we can finish setup)
-volatile uint8_t uartInitialConnectionCheckCountdown = 4;
+volatile static uint8_t uartInitialConnectionCheckCountdown = 4;
 // This global gets incremented every millisecond to allow for timeouts (set to 0 then count until desired)
-volatile uint32_t uartMillisecondCounter = 0;
+volatile static uint32_t uartMillisecondCounter = 0;
+// These two arrays serve as the command and response buffers for all AT commands
+// Allow for the configuration function toggle
+#if BT_ENABLE_CONFIGURATION_FUNCTIONS
+    static char commandBuffer[20], responseBuffer[20];
+#endif
 
 uint8_t bt_setup() {
     // Initialize the software UART stream
@@ -50,239 +52,235 @@ uint8_t bt_setup() {
     return 1;
 }
 
-/*
- * -------------------------------------------------------------------
- * These functions DO NOT need to be run each time the module is used:
- * -------------------------------------------------------------------
- */
+// Allow for the configuration function toggle
+#if BT_ENABLE_CONFIGURATION_FUNCTIONS
 
-uint8_t bt_test() {
-    // Send the AT command (expecting OK or OK+LOST in response)
-    char responseBuffer[6]; // Should hold either "" (OK) or "+LOST" (OK+LOST) after next line
-    size_t responseLength = bt_sendATQuery("AT", "OK", responseBuffer, 6);
-    return responseLength == 0 || (responseLength > 0 && strcmp(responseBuffer, "+LOST") == 0);
-}
+    /*
+    * -------------------------------------------------------------------
+    * These functions DO NOT need to be run each time the module is used:
+    * -------------------------------------------------------------------
+    */
 
-// AT+ADC
-
-size_t bt_getMACAddress(char* buffer, size_t bufferLength) {
-    // Send the AT+ADDR? command (expecting OK+ADDR: to prefix the response)
-    return bt_sendATQuery("AT+ADDR?", "OK+ADDR:", buffer, bufferLength);
-}
-
-// TODO - AT+BAUD (?)
-
-size_t bt_getModuleName(char* buffer, size_t bufferLength) {
-    // Send the AT+NAME? command (expecting OK+NAME: to prefix the response)
-    return bt_sendATQuery("AT+NAME?", "OK+NAME:", buffer, bufferLength);
-}
-
-uint8_t bt_setModuleName(const char* name) {
-    // Fix the name to the required length (12 + null-terminator)
-    // All positions not occupied by the name will be filled
-    // with the null character
-    char fixedLengthName[13];
-    size_t nameLength = strlen(name);
-    if (nameLength <= 12) {
-        // Copy the name and fill any remaining positions
-        strcpy(fixedLengthName, name);
-        while (nameLength < 12) {
-            fixedLengthName[nameLength++] = '\0';
-        }
-    } else {
-        // Truncate the name at 12 characters
-        strncpy(fixedLengthName, name, 12);
+    uint8_t bt_test() {
+        // Send the AT command (expecting OK or OK+LOST in response)
+        size_t responseLength = bt_sendATQuery("AT", "OK", responseBuffer, 6);
+        return responseLength == 0 || (responseLength > 0 && strcmp(responseBuffer, "+LOST") == 0);
     }
-    fixedLengthName[12] = '\0';
 
-    // Generate command and expected response
-    char command[20];
-    char response[20];
-    sprintf(command, "AT+NAME%s", fixedLengthName);
-    sprintf(response, "OK+Set:%s", fixedLengthName);
-
-    return bt_sendATCommand(command, response);
-}
-
-size_t bt_getModulePIN(char* buffer, size_t bufferLength) {
-    // Send the AT+PASS? command (expecting OK+Get: to prefix the response)
-    return bt_sendATQuery("AT+PASS?", "OK+Get:", buffer, bufferLength);
-}
-
-uint8_t bt_setModulePIN(const char* pin) {
-    // Fix the PIN to the required length (6 + null-terminator)
-    char fixedLengthPin[7];
-    size_t pinLength = strlen(pin);
-    if (pinLength == 6) {
-        strcpy(fixedLengthPin, pin);
-    } else if (pinLength > 6) {
-        // Truncate the PIN at 6 digits
-        strncpy(fixedLengthPin, pin, 6);
-    } else {
-        strcpy(fixedLengthPin, pin);
-        // Append 0's to fill 6 digits
-        while (pinLength < 6) {
-            fixedLengthPin[pinLength++] = '0';
-        }
+    size_t bt_getMACAddress(char* buffer, size_t bufferLength) {
+        // Send the AT+ADDR? command (expecting OK+ADDR: to prefix the response)
+        return bt_sendATQuery("AT+ADDR?", "OK+ADDR:", buffer, bufferLength);
     }
-    fixedLengthPin[6] = '\0';
 
-    // Generate command and expected response
-    char command[14];
-    char response[14];
-    sprintf(command, "AT+PASS%s", fixedLengthPin);
-    sprintf(response, "OK+Set:%s", fixedLengthPin);
+    // TODO - AT+BAUD (?)
 
-    return bt_sendATCommand(command, response);
-}
-
-uint8_t bt_resetFactoryDefaults() {
-    // Send the AT+RENEW command (expecting OK+RENEW in response)
-    return bt_sendATCommand("AT+RENEW", "OK+RENEW");
-}
-
-uint8_t bt_reset() {
-    // Send the AT+RESET command (expecting OK+RESET in response)
-    return bt_sendATCommand("AT+RESET", "OK+RESET");
-}
-
-uint8_t bt_getAuthenticationType(uint8_t* type) {
-    // Send the AT+PASS? command (expecting OK+Get: to prefix the response)
-    char buffer[2]; // 1 digit + '\0'
-    uint8_t success = bt_sendATQuery("AT+TYPE?", "OK+Get:", buffer, 2);
-
-    // If the command succeeded, parse it to the appropriate integer value
-    if (success) {
-        // Parse character to integer value and return
-        switch (buffer[0]) {
-            case '0':
-                *type = BT_AUTH_TYPE_NONE;
-                break;
-            case '1':
-                *type = BT_AUTH_TYPE_ENCRYPTED_LINK;
-                break;
-            case '2':
-                *type = BT_AUTH_TYPE_MITM_PROTECTED_LINK;
-                break;
-            case '3':
-                *type = BT_AUTH_TYPE_SECURE_CONNECTION_LINK;
-                break;
-            default:
-                // Since we didn't recognize the result, return 0
-                return 0;
-        }
-        return 1;
-    } else {
-        return 0;
+    size_t bt_getModuleName(char* buffer, size_t bufferLength) {
+        // Send the AT+NAME? command (expecting OK+NAME: to prefix the response)
+        return bt_sendATQuery("AT+NAME?", "OK+NAME:", buffer, bufferLength);
     }
-}
 
-uint8_t bt_setAuthenticationType(uint8_t type) {
-    // Check that the type is within bounds
-    if (type > 3)
-        return 0;
-
-    // Generate command and expected response
-    char command[9];
-    char response[9];
-    sprintf(command, "AT+TYPE%d", type);
-    sprintf(response, "OK+Set:%d", type);
-
-    return bt_sendATCommand(command, response);
-}
-
-/*
- * -----------------------------------------------------------------------------
- * These functions are utility functions for use within configuration functions:
- * -----------------------------------------------------------------------------
- */
-
-uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
-    // If the module is connected to a remote device, return 0
-    if (bt_connected())
-        return 0;
-
-    bt_writeString(command);
-
-    // Wait for a response to become available, or the timeout is exceeded
-    uartMillisecondCounter = 0;
-    while (!bt_available() && uartMillisecondCounter < BT_TIMEOUT_MS);
-    
-    // If we've received data, process it.  If not, return 0
-    if (bt_available()) {
-        // Check the characters in the UART stream against the expected response
-        char input;
-        while (bt_awaitAvailable() && *expectedResponse) {
-            input = (char) bt_read();
-            if (input != *expectedResponse)
-                break;
-            expectedResponse++;
+    uint8_t bt_setModuleName(const char* name) {
+        static char fixedLengthName[13];
+        // Fix the name to the required length (12 + null-terminator)
+        // All positions not occupied by the name will be filled
+        // with the null character
+        size_t nameLength = strlen(name);
+        if (nameLength <= 12) {
+            // Copy the name and fill any remaining positions
+            strcpy(fixedLengthName, name);
+            while (nameLength < 12) {
+                fixedLengthName[nameLength++] = '\0';
+            }
+        } else {
+            // Truncate the name at 12 characters
+            strncpy(fixedLengthName, name, 12);
         }
+        fixedLengthName[12] = '\0';
 
-        // Now that we've exhausted the expected response, make sure we don't have anything
-        // else left in the stream.  If we do, read/dispose of it and return 0
-        if (!bt_available() && !*expectedResponse) {
-            // Since the command completed successfully, wait for the defined time
-            // before returning for the change to take effect
-            uartMillisecondCounter = 0;
-            while (uartMillisecondCounter < BT_AT_SET_WAIT_TIME_MS);
-            // Now return after the wait period
+        // Generate command and expected response
+        sprintf(commandBuffer, "AT+NAME%s", fixedLengthName);
+        sprintf(responseBuffer, "OK+Set:%s", fixedLengthName);
+
+        return bt_sendATCommand(commandBuffer, responseBuffer);
+    }
+
+    size_t bt_getModulePIN(char* buffer, size_t bufferLength) {
+        // Send the AT+PASS? command (expecting OK+Get: to prefix the response)
+        return bt_sendATQuery("AT+PASS?", "OK+Get:", buffer, bufferLength);
+    }
+
+    uint8_t bt_setModulePIN(const char* pin) {
+        static char fixedLengthPin[7];
+        // Fix the PIN to the required length (6 + null-terminator)
+        size_t pinLength = strlen(pin);
+        if (pinLength == 6) {
+            strcpy(fixedLengthPin, pin);
+        } else if (pinLength > 6) {
+            // Truncate the PIN at 6 digits
+            strncpy(fixedLengthPin, pin, 6);
+        } else {
+            strcpy(fixedLengthPin, pin);
+            // Append 0's to fill 6 digits
+            while (pinLength < 6) {
+                fixedLengthPin[pinLength++] = '0';
+            }
+        }
+        fixedLengthPin[6] = '\0';
+
+        // Generate command and expected response
+        sprintf(commandBuffer, "AT+PASS%s", fixedLengthPin);
+        sprintf(responseBuffer, "OK+Set:%s", fixedLengthPin);
+
+        return bt_sendATCommand(commandBuffer, responseBuffer);
+    }
+
+    uint8_t bt_resetFactoryDefaults() {
+        // Send the AT+RENEW command (expecting OK+RENEW in response)
+        return bt_sendATCommand("AT+RENEW", "OK+RENEW");
+    }
+
+    uint8_t bt_reset() {
+        // Send the AT+RESET command (expecting OK+RESET in response)
+        return bt_sendATCommand("AT+RESET", "OK+RESET");
+    }
+
+    uint8_t bt_getAuthenticationType(uint8_t* type) {
+        // Send the AT+PASS? command (expecting OK+Get: to prefix the response)
+        uint8_t success = bt_sendATQuery("AT+TYPE?", "OK+Get:", responseBuffer, 2);
+
+        // If the command succeeded, parse it to the appropriate integer value
+        if (success) {
+            // Parse character to integer value and return
+            switch (responseBuffer[0]) {
+                case '0':
+                    *type = BT_AUTH_TYPE_NONE;
+                    break;
+                case '1':
+                    *type = BT_AUTH_TYPE_ENCRYPTED_LINK;
+                    break;
+                case '2':
+                    *type = BT_AUTH_TYPE_MITM_PROTECTED_LINK;
+                    break;
+                case '3':
+                    *type = BT_AUTH_TYPE_SECURE_CONNECTION_LINK;
+                    break;
+                default:
+                    // Since we didn't recognize the result, return 0
+                    return 0;
+            }
             return 1;
         } else {
-            // Read the rest of the available bytes so the stream is ready
-            // to process the next command/input
-            while (bt_awaitAvailable())
-                bt_read();
             return 0;
         }
-    } else {
-        return 0;
     }
-}
 
-size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength) {
-    // If the module is connected to a remote device, return -1
-    if (bt_connected())
-        return 0;
+    uint8_t bt_setAuthenticationType(uint8_t type) {
+        // Check that the type is within bounds
+        if (type > 3)
+            return 0;
 
-    bt_writeString(command);
+        // Generate command and expected response
+        sprintf(commandBuffer, "AT+TYPE%d", type);
+        sprintf(responseBuffer, "OK+Set:%d", type);
 
-    // Wait for a response to become available, or the timeout is exceeded
-    uartMillisecondCounter = 0;
-    while (!bt_available() && uartMillisecondCounter < BT_TIMEOUT_MS);
-    
-    // If we've received data, process it.  If not, return 0
-    if (bt_available()) {
-        // Read the data into a buffer so we can manipulate it later
-        char buffer[BT_AT_RESPONSE_BUFFER_LENGTH];
-        size_t bufferIndex = 0;
-        while (bt_awaitAvailable() && bufferIndex < BT_AT_RESPONSE_BUFFER_LENGTH)
-            buffer[bufferIndex++] = (char) bt_read();
-        buffer[bufferIndex] = '\0';
+        return bt_sendATCommand(commandBuffer, responseBuffer);
+    }
 
-        // If we get enough data to overflow our buffer, read and dispose of the rest of the input
-        // so the UART stream can process future commands/input
-        if (bt_available())
-            while (bt_awaitAvailable())
-                bt_read();
+    /*
+    * -----------------------------------------------------------------------------
+    * These functions are utility functions for use within configuration functions:
+    * -----------------------------------------------------------------------------
+    */
+
+    uint8_t bt_sendATCommand(const char* command, const char* expectedResponse) {
+        // If the module is connected to a remote device, return 0
+        if (bt_connected())
+            return 0;
+
+        bt_writeString(command);
+
+        // Wait for a response to become available, or the timeout is exceeded
+        uartMillisecondCounter = 0;
+        while (!bt_available() && uartMillisecondCounter < BT_TIMEOUT_MS);
         
-        size_t prefixLength = strlen(expectedResponsePrefix);
-        // Check that the required prefix is present, and if not, return -1
-        if (strncmp(buffer, expectedResponsePrefix, prefixLength) == 0) {
-            // Copy the remaining part of the response into the provided response buffer
-            size_t responseLength = strlen(buffer) - prefixLength;
-            size_t responseBufferEnd = min(responseLength, responseBufferLength - 1);
-            strncpy(responseBuffer, buffer + strlen(expectedResponsePrefix), responseBufferEnd);
-            responseBuffer[responseBufferEnd] = '\0';
-            return responseBufferEnd;
+        // If we've received data, process it.  If not, return 0
+        if (bt_available()) {
+            // Check the characters in the UART stream against the expected response
+            char input;
+            while (bt_awaitAvailable() && *expectedResponse) {
+                input = (char) bt_read();
+                if (input != *expectedResponse)
+                    break;
+                expectedResponse++;
+            }
+
+            // Now that we've exhausted the expected response, make sure we don't have anything
+            // else left in the stream.  If we do, read/dispose of it and return 0
+            if (!bt_available() && !*expectedResponse) {
+                // Since the command completed successfully, wait for the defined time
+                // before returning for the change to take effect
+                uartMillisecondCounter = 0;
+                while (uartMillisecondCounter < BT_AT_SET_WAIT_TIME_MS);
+                // Now return after the wait period
+                return 1;
+            } else {
+                // Read the rest of the available bytes so the stream is ready
+                // to process the next command/input
+                while (bt_awaitAvailable())
+                    bt_read();
+                return 0;
+            }
         } else {
-            return -1;
+            return 0;
         }
-    } else {
-        responseBuffer[0] = '\0';
-        return 0;
     }
-}
+
+    size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength) {
+        // Keep one buffer for all queries (since it's reset before each read)
+        static char buffer[BT_AT_RESPONSE_BUFFER_LENGTH];
+
+        // If the module is connected to a remote device, return -1
+        if (bt_connected())
+            return 0;
+
+        bt_writeString(command);
+
+        // Wait for a response to become available, or the timeout is exceeded
+        uartMillisecondCounter = 0;
+        while (!bt_available() && uartMillisecondCounter < BT_TIMEOUT_MS);
+        
+        // If we've received data, process it.  If not, return 0
+        if (bt_available()) {
+            // Read the data into a buffer so we can manipulate it later
+            size_t bufferIndex = 0;
+            while (bt_awaitAvailable() && bufferIndex < BT_AT_RESPONSE_BUFFER_LENGTH)
+                buffer[bufferIndex++] = (char) bt_read();
+            buffer[bufferIndex] = '\0';
+
+            // If we get enough data to overflow our buffer, read and dispose of the rest of the input
+            // so the UART stream can process future commands/input
+            if (bt_available())
+                while (bt_awaitAvailable())
+                    bt_read();
+            
+            size_t prefixLength = strlen(expectedResponsePrefix);
+            // Check that the required prefix is present, and if not, return -1
+            if (strncmp(buffer, expectedResponsePrefix, prefixLength) == 0) {
+                // Copy the remaining part of the response into the provided response buffer
+                size_t responseLength = strlen(buffer) - prefixLength;
+                size_t responseBufferEnd = min(responseLength, responseBufferLength - 1);
+                strncpy(responseBuffer, buffer + strlen(expectedResponsePrefix), responseBufferEnd);
+                responseBuffer[responseBufferEnd] = '\0';
+                return responseBufferEnd;
+            } else {
+                return -1;
+            }
+        } else {
+            responseBuffer[0] = '\0';
+            return 0;
+        }
+    }
+#endif
 
 /*
  *   _   _   _    ___  _____                    _     ___    __ ___  
@@ -581,7 +579,6 @@ void bt_flush() {
  * Utility functions for sending strings via the UART stream:
  * ----------------------------------------------------------
  */
-
 void bt_writeString(const char* string) {
     // Write all bytes of the string (excluding the null-terminator)
     while (*string) {
