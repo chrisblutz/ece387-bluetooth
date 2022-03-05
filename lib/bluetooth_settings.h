@@ -82,4 +82,9 @@
 //         sends each bit
 #define BT_UART_PACKET_WAIT_MS 50
 
+// Define the endian-ness of numbers being read from/written to the UART stream
+//  - 0 is big-endian, so the most significant bytes are read/written first
+//  - 1 is little-endian, so the least significant bytes are read/written first
+#define BT_UART_ENDIANNESS 0
+
 #endif // BLUETOOTH_SETTINGS_H

@@ -103,4 +103,25 @@ void bt_initializeUARTTimer();
  */
 void bt_initializeUART();
 
+/**
+ * This function writes an array of bytes to the UART stream
+ * in the order specified by BT_UART_ENDIANNESS.
+ * 
+ * @param bytes the bytes to write (most significant bit first)
+ * @param byteCount the number of bytes to write
+ */
+void bt_writeOrderedBytes(const uint8_t* bytes, const size_t byteCount);
+
+/**
+ * This function reads an array of bytes from the UART stream
+ * in the order specified by BT_UART_ENDIANNESS.
+ * 
+ * The array will be padded with zeros if not enough data
+ * is provided.
+ * 
+ * @param bytes the byte array to read into (most significant bit will be first)
+ * @param byteCount the number of bytes to read
+ */
+void bt_readOrderedBytes(uint8_t* bytes, const size_t byteCount);
+
 #endif // BLUETOOTH_INTERNAL_H

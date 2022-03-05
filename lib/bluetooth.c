@@ -70,95 +70,7 @@ size_t bt_getMACAddress(char* buffer, size_t bufferLength) {
     return bt_sendATQuery("AT+ADDR?", "OK+ADDR:", buffer, bufferLength);
 }
 
-// AT+ADVI
-
-// AT+ADTY
-
-// AT+ANCS
-
-// AT+ALLO
-
-// AT+AD
-
-// AT+BEFC
-
-// AT+AFTC
-
-// AT+BATC
-
-// AT+BATT
-
-// AT+BIT7
-
-// AT+BAUD
-
-// AT+COMI
-
-// AT+COMA
-
-// AT+COLA
-
-// AT+COSU
-
-// AT+COUP
-
-// AT+CHAR
-
-// AT+CLEAR
-
-// AT+CONNL
-
-// AT+CO
-
-// AT+COL
-
-// AT+CYC
-
-// AT+COMP
-
-// AT+DISC
-
-// AT+DISI
-
-// AT+CONN
-
-// AT+DELO
-
-// AT+ERASE
-
-// AT+FLAG
-
-// AT+FILT
-
-// AT_FIOW [FLOW?]
-
-// AT+GAIN
-
-// AT+HUMI
-
-// AT+IMME
-
-// AT+IBEA
-
-// AT+IBE0
-
-// AT+IBE1
-
-// AT+IBE2
-
-// AT+IBE3
-
-// AT+MARJ
-
-// AT+MINO
-
-// AT+MEAS
-
-// AT+MODE
-
-// AT+NOTI
-
-// AT+NOTP
+// TODO - AT+BAUD (?)
 
 size_t bt_getModuleName(char* buffer, size_t bufferLength) {
     // Send the AT+NAME? command (expecting OK+NAME: to prefix the response)
@@ -192,14 +104,6 @@ uint8_t bt_setModuleName(const char* name) {
     return bt_sendATCommand(command, response);
 }
 
-// AT+PCTL
-
-// AT+PARI
-
-// AT+PIO1
-
-// AT+PIO
-
 size_t bt_getModulePIN(char* buffer, size_t bufferLength) {
     // Send the AT+PASS? command (expecting OK+Get: to prefix the response)
     return bt_sendATQuery("AT+PASS?", "OK+Get:", buffer, bufferLength);
@@ -215,7 +119,7 @@ uint8_t bt_setModulePIN(const char* pin) {
         // Truncate the PIN at 6 digits
         strncpy(fixedLengthPin, pin, 6);
     } else {
-        strncpy(fixedLengthPin, pin, pinLength);
+        strcpy(fixedLengthPin, pin);
         // Append 0's to fill 6 digits
         while (pinLength < 6) {
             fixedLengthPin[pinLength++] = '0';
@@ -232,12 +136,6 @@ uint8_t bt_setModulePIN(const char* pin) {
     return bt_sendATCommand(command, response);
 }
 
-// AT+POWE
-
-// AT+PWRM
-
-// AT+RELI
-
 uint8_t bt_resetFactoryDefaults() {
     // Send the AT+RENEW command (expecting OK+RENEW in response)
     return bt_sendATCommand("AT+RENEW", "OK+RENEW");
@@ -248,35 +146,6 @@ uint8_t bt_reset() {
     return bt_sendATCommand("AT+RESET", "OK+RESET");
 }
 
-// AT+ROLE
-
-// AT+RSSI
-
-// AT+RADD
-
-// AT+RAT
-
-// AT+STOP
-
-// AT+START
-
-// AT+SLEEP
-
-// AT+SAVE
-
-// AT+SCAN
-
-// AT+SENS
-
-// AT+SHOW
-
-// AT+TEHU
-
-// AT+TEMP
-
-// AT+TCON
-
-// AT+TYPE
 uint8_t bt_getAuthenticationType(uint8_t* type) {
     // Send the AT+PASS? command (expecting OK+Get: to prefix the response)
     char buffer[2]; // 1 digit + '\0'
@@ -321,12 +190,6 @@ uint8_t bt_setAuthenticationType(uint8_t type) {
 
     return bt_sendATCommand(command, response);
 }
-
-// AT+UUID
-
-// AT+UART
-
-// AT+VERS
 
 /*
  * -----------------------------------------------------------------------------
@@ -713,6 +576,12 @@ void bt_flush() {
  *                        (I/O Utilities)
  */
 
+/*
+ * ----------------------------------------------------------
+ * Utility functions for sending strings via the UART stream:
+ * ----------------------------------------------------------
+ */
+
 void bt_writeString(const char* string) {
     // Write all bytes of the string (excluding the null-terminator)
     while (*string) {
@@ -742,4 +611,129 @@ size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength) {
         while (bt_awaitAvailable() && (input = bt_read()) != delimiter);
 
     return strlen(buffer);
+}
+
+/*
+ * -----------------------------------------------------------
+ * Utility functions for sending integers via the UART stream:
+ * -----------------------------------------------------------
+ */
+
+void bt_writeOrderedBytes(const uint8_t* bytes, const size_t byteCount) {
+    // Write the number of bytes specified
+    size_t remaining = byteCount;
+    size_t currentOffset = (BT_UART_ENDIANNESS == 0) ? 0 : (byteCount - 1);
+    while (remaining > 0) {
+        bt_write(*(bytes + currentOffset));
+        // Increment or decrement the byte pointer
+        currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
+        remaining--;
+    }
+}
+
+void bt_readOrderedBytes(uint8_t* bytes, size_t byteCount) {
+    // Attempt to read the number of bytes specified
+    size_t remaining = byteCount;
+    size_t currentOffset = (BT_UART_ENDIANNESS == 0) ? 0 : (byteCount - 1);
+    while (bt_awaitAvailable() && remaining > 0) {
+        *(bytes + currentOffset) = bt_read();
+        // Increment or decrement the byte pointer
+        currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
+        remaining--;
+    }
+    // Fill any remaining bytes with zeros
+    while (remaining > 0) {
+        *(bytes + currentOffset) = 0x0;
+        // Increment or decrement the byte pointer
+        currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
+        remaining--;
+    }
+}
+
+void bt_writeInt32(int32_t value) {
+    // Break down the integer into a byte array (most significant bit first)
+    uint8_t bytes[] = {
+        (value & 0xFF000000) >> 24,
+        (value & 0x00FF0000) >> 16,
+        (value & 0x0000FF00) >> 8,
+        value & 0x000000FF
+    };
+    // Send the byte array
+    bt_writeOrderedBytes(bytes, 4);
+}
+
+int32_t bt_readInt32() {
+    // Read the bytes into a byte array
+    uint8_t bytes[4];
+    bt_readOrderedBytes(bytes, 4);
+    // Shift the bytes into the integer
+    int32_t value = ((uint32_t) bytes[0] << 24) \
+                  | ((uint32_t) bytes[1] << 16) \
+                  | ((uint32_t) bytes[2] << 8) \
+                  | ((uint32_t) bytes[3]);
+    return value;
+}
+
+void bt_writeUInt32(uint32_t value) {
+    // Break down the integer into a byte array (most significant bit first)
+    uint8_t bytes[] = {
+        (value & 0xFF000000) >> 24,
+        (value & 0x00FF0000) >> 16,
+        (value & 0x0000FF00) >> 8,
+        value & 0x000000FF
+    };
+    // Send the byte array
+    bt_writeOrderedBytes(bytes, 4);
+}
+
+uint32_t bt_readUInt32() {
+    // Read the bytes into a byte array
+    uint8_t bytes[4];
+    bt_readOrderedBytes(bytes, 4);
+    // Shift the bytes into the integer
+    uint32_t value = ((uint32_t) bytes[0] << 24) \
+                   | ((uint32_t) bytes[1] << 16) \
+                   | ((uint32_t) bytes[2] << 8) \
+                   | ((uint32_t) bytes[3]);
+    return value;
+}
+
+void bt_writeInt16(int16_t value) {
+    // Break down the integer into a byte array (most significant bit first)
+    uint8_t bytes[] = {
+        (value & 0xFF00) >> 8,
+        value & 0x00FF
+    };
+    // Send the byte array
+    bt_writeOrderedBytes(bytes, 2);
+}
+
+int16_t bt_readInt16() {
+    // Read the bytes into a byte array
+    uint8_t bytes[2];
+    bt_readOrderedBytes(bytes, 2);
+    // Shift the bytes into the integer
+    int16_t value = ((uint16_t) bytes[0] << 8) \
+                  | ((uint16_t) bytes[1]);
+    return value;
+}
+
+void bt_writeUInt16(uint16_t value) {
+    // Break down the integer into a byte array (most significant bit first)
+    uint8_t bytes[] = {
+        (value & 0xFF00) >> 8,
+        value & 0x00FF
+    };
+    // Send the byte array
+    bt_writeOrderedBytes(bytes, 2);
+}
+
+uint16_t bt_readUInt16() {
+    // Read the bytes into a byte array
+    uint8_t bytes[2];
+    bt_readOrderedBytes(bytes, 2);
+    // Shift the bytes into the integer
+    uint16_t value = ((uint16_t) bytes[0] << 8) \
+                   | ((uint16_t) bytes[1]);
+    return value;
 }

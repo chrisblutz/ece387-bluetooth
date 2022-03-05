@@ -577,4 +577,92 @@ void bt_writeString(const char* string);
  */
 size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength);
 
+/**
+ * This function writes a signed 32-bit integer value to the UART stream.
+ * 
+ * It uses the endianness defined by BT_UART_ENDIANNESS to
+ * determine which bytes should be sent first.
+ * 
+ * @param value the value to send
+ */
+void bt_writeInt32(int32_t value);
+
+/**
+ * This function reads a signed 32-bit integer value from the UART stream.
+ * 
+ * It uses the endianness defined by BT_UART_ENDIANNESS to
+ * determine which bytes are read first.
+ * 
+ * If an error occurs while reading, 0 is returned.
+ * 
+ * @returns the value read
+ */
+int32_t bt_readInt32();
+
+/**
+ * This function writes a unsigned 32-bit integer value to the UART stream.
+ * 
+ * It uses the endianness defined by BT_UART_ENDIANNESS to
+ * determine which bytes should be sent first.
+ * 
+ * @param value the value to send
+ */
+void bt_writeUInt32(uint32_t value);
+
+/**
+ * This function reads a unsigned 32-bit integer value from the UART stream.
+ * 
+ * It uses the endianness defined by BT_UART_ENDIANNESS to
+ * determine which bytes are read first.
+ * 
+ * If an error occurs while reading, 0 is returned.
+ * 
+ * @returns the value read
+ */
+uint32_t bt_readUInt32();
+
+/**
+ * This function writes a signed 16-bit integer value to the UART stream.
+ * 
+ * It uses the endianness defined by BT_UART_ENDIANNESS to
+ * determine which bytes should be sent first.
+ * 
+ * @param value the value to send
+ */
+void bt_writeInt16(int16_t value);
+
+/**
+ * This function reads a signed 16-bit integer value from the UART stream.
+ * 
+ * It uses the endianness defined by BT_UART_ENDIANNESS to
+ * determine which bytes are read first.
+ * 
+ * If an error occurs while reading, 0 is returned.
+ * 
+ * @returns the value read
+ */
+int16_t bt_readInt16();
+
+/**
+ * This function writes a unsigned 16-bit integer value to the UART stream.
+ * 
+ * It uses the endianness defined by BT_UART_ENDIANNESS to
+ * determine which bytes should be sent first.
+ * 
+ * @param value the value to send
+ */
+void bt_writeUInt16(uint16_t value);
+
+/**
+ * This function reads a unsigned 16-bit integer value from the UART stream.
+ * 
+ * It uses the endianness defined by BT_UART_ENDIANNESS to
+ * determine which bytes are read first.
+ * 
+ * If an error occurs while reading, 0 is returned.
+ * 
+ * @returns the value read
+ */
+uint16_t bt_readUInt16();
+
 #endif // BLUETOOTH_H
