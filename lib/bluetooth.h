@@ -306,6 +306,7 @@ uint8_t bt_setup();
      * @returns the length of the response returned, excluding the null-terminator
      */
     size_t bt_sendATQuery(const char* command, const char* expectedResponsePrefix, char* responseBuffer, size_t responseBufferLength);
+
 #endif
 
 /*
@@ -410,127 +411,144 @@ void bt_flush();
  *                        (I/O Utilities)
  */
 
-/**
- * This function writes a string of bytes to the Bluetooth module's
- * UART stream.  It will not write the null-terminator, so if the
- * remote device requires the null-terminator to be sent, use
- * bt_write(0) after calling this function.
- * 
- * @param string the string to write to the stream
- */
-void bt_writeString(const char* string);
+// Allow for the complex object read/write function toggle
+#if BT_ENABLE_COMPLEX_OBJECT_RX_TX_FUNCTIONS
 
-/**
- * This function reads a string of bytes from the Bluetooth module's
- * UART stream.  The delimiter provided is used to determine when a string
- * ends.  This function will append a null-terminator to the string when read.
- * 
- * If the strings being sent by the remote device do not have a consistent
- * delimiter, this function will not work.  Instead, use a while loop to check
- * if bytes are available, and then read them using bt_read().
- * 
- * This function does not block, so if there is no new data to read, it
- * will result in a string of length 0 (the empty string, "").  To ensure new
- * data is available when this function is called, verify bt_available() first.
- * 
- * If the response overflows the provided buffer, the response
- * will be truncated to fill the buffer, and the buffer will end
- * with a null-terminator regardless of if the response overflowed
- * it or not.
- * 
- * @param delimiter the character that ends a string from the UART stream (e.g. "\n", "\0", etc.)
- * @param buffer the pre-allocated character buffer where the null-terminated string will be stored
- * @param bufferLength the length of the pre-allocated buffer provided to this function
- * @returns the length of the string read from the stream, excluding the null-terminator
- */
-size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength);
+    /*
+    * ----------------------------------------------------------
+    * Utility functions for sending strings via the UART stream:
+    * ----------------------------------------------------------
+    */
 
-/**
- * This function writes a signed 32-bit integer value to the UART stream.
- * 
- * It uses the endianness defined by BT_UART_ENDIANNESS to
- * determine which bytes should be sent first.
- * 
- * @param value the value to send
- */
-void bt_writeInt32(int32_t value);
+    /**
+     * This function writes a string of bytes to the Bluetooth module's
+     * UART stream.  It will not write the null-terminator, so if the
+     * remote device requires the null-terminator to be sent, use
+     * bt_write(0) after calling this function.
+     * 
+     * @param string the string to write to the stream
+     */
+    void bt_writeString(const char* string);
 
-/**
- * This function reads a signed 32-bit integer value from the UART stream.
- * 
- * It uses the endianness defined by BT_UART_ENDIANNESS to
- * determine which bytes are read first.
- * 
- * If an error occurs while reading, 0 is returned.
- * 
- * @returns the value read
- */
-int32_t bt_readInt32();
+    /**
+     * This function reads a string of bytes from the Bluetooth module's
+     * UART stream.  The delimiter provided is used to determine when a string
+     * ends.  This function will append a null-terminator to the string when read.
+     * 
+     * If the strings being sent by the remote device do not have a consistent
+     * delimiter, this function will not work.  Instead, use a while loop to check
+     * if bytes are available, and then read them using bt_read().
+     * 
+     * This function does not block, so if there is no new data to read, it
+     * will result in a string of length 0 (the empty string, "").  To ensure new
+     * data is available when this function is called, verify bt_available() first.
+     * 
+     * If the response overflows the provided buffer, the response
+     * will be truncated to fill the buffer, and the buffer will end
+     * with a null-terminator regardless of if the response overflowed
+     * it or not.
+     * 
+     * @param delimiter the character that ends a string from the UART stream (e.g. "\n", "\0", etc.)
+     * @param buffer the pre-allocated character buffer where the null-terminated string will be stored
+     * @param bufferLength the length of the pre-allocated buffer provided to this function
+     * @returns the length of the string read from the stream, excluding the null-terminator
+     */
+    size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength);
 
-/**
- * This function writes a unsigned 32-bit integer value to the UART stream.
- * 
- * It uses the endianness defined by BT_UART_ENDIANNESS to
- * determine which bytes should be sent first.
- * 
- * @param value the value to send
- */
-void bt_writeUInt32(uint32_t value);
+    /*
+    * -----------------------------------------------------------
+    * Utility functions for sending integers via the UART stream:
+    * -----------------------------------------------------------
+    */
 
-/**
- * This function reads a unsigned 32-bit integer value from the UART stream.
- * 
- * It uses the endianness defined by BT_UART_ENDIANNESS to
- * determine which bytes are read first.
- * 
- * If an error occurs while reading, 0 is returned.
- * 
- * @returns the value read
- */
-uint32_t bt_readUInt32();
+    /**
+     * This function writes a signed 32-bit integer value to the UART stream.
+     * 
+     * It uses the endianness defined by BT_UART_ENDIANNESS to
+     * determine which bytes should be sent first.
+     * 
+     * @param value the value to send
+     */
+    void bt_writeInt32(int32_t value);
 
-/**
- * This function writes a signed 16-bit integer value to the UART stream.
- * 
- * It uses the endianness defined by BT_UART_ENDIANNESS to
- * determine which bytes should be sent first.
- * 
- * @param value the value to send
- */
-void bt_writeInt16(int16_t value);
+    /**
+     * This function reads a signed 32-bit integer value from the UART stream.
+     * 
+     * It uses the endianness defined by BT_UART_ENDIANNESS to
+     * determine which bytes are read first.
+     * 
+     * If an error occurs while reading, 0 is returned.
+     * 
+     * @returns the value read
+     */
+    int32_t bt_readInt32();
 
-/**
- * This function reads a signed 16-bit integer value from the UART stream.
- * 
- * It uses the endianness defined by BT_UART_ENDIANNESS to
- * determine which bytes are read first.
- * 
- * If an error occurs while reading, 0 is returned.
- * 
- * @returns the value read
- */
-int16_t bt_readInt16();
+    /**
+     * This function writes a unsigned 32-bit integer value to the UART stream.
+     * 
+     * It uses the endianness defined by BT_UART_ENDIANNESS to
+     * determine which bytes should be sent first.
+     * 
+     * @param value the value to send
+     */
+    void bt_writeUInt32(uint32_t value);
 
-/**
- * This function writes a unsigned 16-bit integer value to the UART stream.
- * 
- * It uses the endianness defined by BT_UART_ENDIANNESS to
- * determine which bytes should be sent first.
- * 
- * @param value the value to send
- */
-void bt_writeUInt16(uint16_t value);
+    /**
+     * This function reads a unsigned 32-bit integer value from the UART stream.
+     * 
+     * It uses the endianness defined by BT_UART_ENDIANNESS to
+     * determine which bytes are read first.
+     * 
+     * If an error occurs while reading, 0 is returned.
+     * 
+     * @returns the value read
+     */
+    uint32_t bt_readUInt32();
 
-/**
- * This function reads a unsigned 16-bit integer value from the UART stream.
- * 
- * It uses the endianness defined by BT_UART_ENDIANNESS to
- * determine which bytes are read first.
- * 
- * If an error occurs while reading, 0 is returned.
- * 
- * @returns the value read
- */
-uint16_t bt_readUInt16();
+    /**
+     * This function writes a signed 16-bit integer value to the UART stream.
+     * 
+     * It uses the endianness defined by BT_UART_ENDIANNESS to
+     * determine which bytes should be sent first.
+     * 
+     * @param value the value to send
+     */
+    void bt_writeInt16(int16_t value);
+
+    /**
+     * This function reads a signed 16-bit integer value from the UART stream.
+     * 
+     * It uses the endianness defined by BT_UART_ENDIANNESS to
+     * determine which bytes are read first.
+     * 
+     * If an error occurs while reading, 0 is returned.
+     * 
+     * @returns the value read
+     */
+    int16_t bt_readInt16();
+
+    /**
+     * This function writes a unsigned 16-bit integer value to the UART stream.
+     * 
+     * It uses the endianness defined by BT_UART_ENDIANNESS to
+     * determine which bytes should be sent first.
+     * 
+     * @param value the value to send
+     */
+    void bt_writeUInt16(uint16_t value);
+
+    /**
+     * This function reads a unsigned 16-bit integer value from the UART stream.
+     * 
+     * It uses the endianness defined by BT_UART_ENDIANNESS to
+     * determine which bytes are read first.
+     * 
+     * If an error occurs while reading, 0 is returned.
+     * 
+     * @returns the value read
+     */
+    uint16_t bt_readUInt16();
+
+#endif
 
 #endif // BLUETOOTH_H

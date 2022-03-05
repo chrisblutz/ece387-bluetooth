@@ -197,7 +197,10 @@ uint8_t bt_setup() {
         if (bt_connected())
             return 0;
 
-        bt_writeString(command);
+        // Send command
+        while (*command) {
+            bt_write(*command++);
+        }
 
         // Wait for a response to become available, or the timeout is exceeded
         uartMillisecondCounter = 0;
@@ -243,7 +246,10 @@ uint8_t bt_setup() {
         if (bt_connected())
             return 0;
 
-        bt_writeString(command);
+        // Send command
+        while (*command) {
+            bt_write(*command++);
+        }
 
         // Wait for a response to become available, or the timeout is exceeded
         uartMillisecondCounter = 0;
@@ -280,6 +286,7 @@ uint8_t bt_setup() {
             return 0;
         }
     }
+
 #endif
 
 /*
@@ -574,163 +581,169 @@ void bt_flush() {
  *                        (I/O Utilities)
  */
 
-/*
- * ----------------------------------------------------------
- * Utility functions for sending strings via the UART stream:
- * ----------------------------------------------------------
- */
-void bt_writeString(const char* string) {
-    // Write all bytes of the string (excluding the null-terminator)
-    while (*string) {
-        bt_write(*string++);
+// Allow for the complex object read/write function toggle
+#if BT_ENABLE_COMPLEX_OBJECT_RX_TX_FUNCTIONS
+
+    /*
+    * ----------------------------------------------------------
+    * Utility functions for sending strings via the UART stream:
+    * ----------------------------------------------------------
+    */
+
+    void bt_writeString(const char* string) {
+        // Write all bytes of the string (excluding the null-terminator)
+        while (*string) {
+            bt_write(*string++);
+        }
     }
-}
 
-size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength) {
-    // Read bytes to fill the given buffer
-    size_t bufferIndex = 0;
-    char input;
-    while (bt_awaitAvailable() && bufferIndex < bufferLength - 1) {
-        input = (char) bt_read();
+    size_t bt_readString(const char delimiter, char* buffer, size_t bufferLength) {
+        // Read bytes to fill the given buffer
+        size_t bufferIndex = 0;
+        char input;
+        while (bt_awaitAvailable() && bufferIndex < bufferLength - 1) {
+            input = (char) bt_read();
 
-        // If we've reached a delimiter, break
-        if (input == delimiter)
-            break;
+            // If we've reached a delimiter, break
+            if (input == delimiter)
+                break;
 
-        buffer[bufferIndex++] = input;
+            buffer[bufferIndex++] = input;
+        }
+        buffer[bufferIndex] = '\0';
+
+        // If we've not reached the delimiter and there are still bytes available
+        // (e.g. we overflowed the buffer), read the remaining bytes to clear the input
+        // so the UART stream can handle further input
+        if (bt_available())
+            while (bt_awaitAvailable() && (input = bt_read()) != delimiter);
+
+        return strlen(buffer);
     }
-    buffer[bufferIndex] = '\0';
 
-    // If we've not reached the delimiter and there are still bytes available
-    // (e.g. we overflowed the buffer), read the remaining bytes to clear the input
-    // so the UART stream can handle further input
-    if (bt_available())
-        while (bt_awaitAvailable() && (input = bt_read()) != delimiter);
+    /*
+    * -----------------------------------------------------------
+    * Utility functions for sending integers via the UART stream:
+    * -----------------------------------------------------------
+    */
 
-    return strlen(buffer);
-}
-
-/*
- * -----------------------------------------------------------
- * Utility functions for sending integers via the UART stream:
- * -----------------------------------------------------------
- */
-
-void bt_writeOrderedBytes(const uint8_t* bytes, const size_t byteCount) {
-    // Write the number of bytes specified
-    size_t remaining = byteCount;
-    size_t currentOffset = (BT_UART_ENDIANNESS == 0) ? 0 : (byteCount - 1);
-    while (remaining > 0) {
-        bt_write(*(bytes + currentOffset));
-        // Increment or decrement the byte pointer
-        currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
-        remaining--;
+    void bt_writeOrderedBytes(const uint8_t* bytes, const size_t byteCount) {
+        // Write the number of bytes specified
+        size_t remaining = byteCount;
+        size_t currentOffset = (BT_UART_ENDIANNESS == 0) ? 0 : (byteCount - 1);
+        while (remaining > 0) {
+            bt_write(*(bytes + currentOffset));
+            // Increment or decrement the byte pointer
+            currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
+            remaining--;
+        }
     }
-}
 
-void bt_readOrderedBytes(uint8_t* bytes, size_t byteCount) {
-    // Attempt to read the number of bytes specified
-    size_t remaining = byteCount;
-    size_t currentOffset = (BT_UART_ENDIANNESS == 0) ? 0 : (byteCount - 1);
-    while (bt_awaitAvailable() && remaining > 0) {
-        *(bytes + currentOffset) = bt_read();
-        // Increment or decrement the byte pointer
-        currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
-        remaining--;
+    void bt_readOrderedBytes(uint8_t* bytes, size_t byteCount) {
+        // Attempt to read the number of bytes specified
+        size_t remaining = byteCount;
+        size_t currentOffset = (BT_UART_ENDIANNESS == 0) ? 0 : (byteCount - 1);
+        while (bt_awaitAvailable() && remaining > 0) {
+            *(bytes + currentOffset) = bt_read();
+            // Increment or decrement the byte pointer
+            currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
+            remaining--;
+        }
+        // Fill any remaining bytes with zeros
+        while (remaining > 0) {
+            *(bytes + currentOffset) = 0x0;
+            // Increment or decrement the byte pointer
+            currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
+            remaining--;
+        }
     }
-    // Fill any remaining bytes with zeros
-    while (remaining > 0) {
-        *(bytes + currentOffset) = 0x0;
-        // Increment or decrement the byte pointer
-        currentOffset = currentOffset + ((BT_UART_ENDIANNESS == 0) ? 1 : -1);
-        remaining--;
+
+    void bt_writeInt32(int32_t value) {
+        // Break down the integer into a byte array (most significant bit first)
+        uint8_t bytes[] = {
+            (value & 0xFF000000) >> 24,
+            (value & 0x00FF0000) >> 16,
+            (value & 0x0000FF00) >> 8,
+            value & 0x000000FF
+        };
+        // Send the byte array
+        bt_writeOrderedBytes(bytes, 4);
     }
-}
 
-void bt_writeInt32(int32_t value) {
-    // Break down the integer into a byte array (most significant bit first)
-    uint8_t bytes[] = {
-        (value & 0xFF000000) >> 24,
-        (value & 0x00FF0000) >> 16,
-        (value & 0x0000FF00) >> 8,
-        value & 0x000000FF
-    };
-    // Send the byte array
-    bt_writeOrderedBytes(bytes, 4);
-}
+    int32_t bt_readInt32() {
+        // Read the bytes into a byte array
+        uint8_t bytes[4];
+        bt_readOrderedBytes(bytes, 4);
+        // Shift the bytes into the integer
+        int32_t value = ((uint32_t) bytes[0] << 24) \
+                    | ((uint32_t) bytes[1] << 16) \
+                    | ((uint32_t) bytes[2] << 8) \
+                    | ((uint32_t) bytes[3]);
+        return value;
+    }
 
-int32_t bt_readInt32() {
-    // Read the bytes into a byte array
-    uint8_t bytes[4];
-    bt_readOrderedBytes(bytes, 4);
-    // Shift the bytes into the integer
-    int32_t value = ((uint32_t) bytes[0] << 24) \
-                  | ((uint32_t) bytes[1] << 16) \
-                  | ((uint32_t) bytes[2] << 8) \
-                  | ((uint32_t) bytes[3]);
-    return value;
-}
+    void bt_writeUInt32(uint32_t value) {
+        // Break down the integer into a byte array (most significant bit first)
+        uint8_t bytes[] = {
+            (value & 0xFF000000) >> 24,
+            (value & 0x00FF0000) >> 16,
+            (value & 0x0000FF00) >> 8,
+            value & 0x000000FF
+        };
+        // Send the byte array
+        bt_writeOrderedBytes(bytes, 4);
+    }
 
-void bt_writeUInt32(uint32_t value) {
-    // Break down the integer into a byte array (most significant bit first)
-    uint8_t bytes[] = {
-        (value & 0xFF000000) >> 24,
-        (value & 0x00FF0000) >> 16,
-        (value & 0x0000FF00) >> 8,
-        value & 0x000000FF
-    };
-    // Send the byte array
-    bt_writeOrderedBytes(bytes, 4);
-}
+    uint32_t bt_readUInt32() {
+        // Read the bytes into a byte array
+        uint8_t bytes[4];
+        bt_readOrderedBytes(bytes, 4);
+        // Shift the bytes into the integer
+        uint32_t value = ((uint32_t) bytes[0] << 24) \
+                    | ((uint32_t) bytes[1] << 16) \
+                    | ((uint32_t) bytes[2] << 8) \
+                    | ((uint32_t) bytes[3]);
+        return value;
+    }
 
-uint32_t bt_readUInt32() {
-    // Read the bytes into a byte array
-    uint8_t bytes[4];
-    bt_readOrderedBytes(bytes, 4);
-    // Shift the bytes into the integer
-    uint32_t value = ((uint32_t) bytes[0] << 24) \
-                   | ((uint32_t) bytes[1] << 16) \
-                   | ((uint32_t) bytes[2] << 8) \
-                   | ((uint32_t) bytes[3]);
-    return value;
-}
+    void bt_writeInt16(int16_t value) {
+        // Break down the integer into a byte array (most significant bit first)
+        uint8_t bytes[] = {
+            (value & 0xFF00) >> 8,
+            value & 0x00FF
+        };
+        // Send the byte array
+        bt_writeOrderedBytes(bytes, 2);
+    }
 
-void bt_writeInt16(int16_t value) {
-    // Break down the integer into a byte array (most significant bit first)
-    uint8_t bytes[] = {
-        (value & 0xFF00) >> 8,
-        value & 0x00FF
-    };
-    // Send the byte array
-    bt_writeOrderedBytes(bytes, 2);
-}
+    int16_t bt_readInt16() {
+        // Read the bytes into a byte array
+        uint8_t bytes[2];
+        bt_readOrderedBytes(bytes, 2);
+        // Shift the bytes into the integer
+        int16_t value = ((uint16_t) bytes[0] << 8) \
+                    | ((uint16_t) bytes[1]);
+        return value;
+    }
 
-int16_t bt_readInt16() {
-    // Read the bytes into a byte array
-    uint8_t bytes[2];
-    bt_readOrderedBytes(bytes, 2);
-    // Shift the bytes into the integer
-    int16_t value = ((uint16_t) bytes[0] << 8) \
-                  | ((uint16_t) bytes[1]);
-    return value;
-}
+    void bt_writeUInt16(uint16_t value) {
+        // Break down the integer into a byte array (most significant bit first)
+        uint8_t bytes[] = {
+            (value & 0xFF00) >> 8,
+            value & 0x00FF
+        };
+        // Send the byte array
+        bt_writeOrderedBytes(bytes, 2);
+    }
 
-void bt_writeUInt16(uint16_t value) {
-    // Break down the integer into a byte array (most significant bit first)
-    uint8_t bytes[] = {
-        (value & 0xFF00) >> 8,
-        value & 0x00FF
-    };
-    // Send the byte array
-    bt_writeOrderedBytes(bytes, 2);
-}
+    uint16_t bt_readUInt16() {
+        // Read the bytes into a byte array
+        uint8_t bytes[2];
+        bt_readOrderedBytes(bytes, 2);
+        // Shift the bytes into the integer
+        uint16_t value = ((uint16_t) bytes[0] << 8) \
+                    | ((uint16_t) bytes[1]);
+        return value;
+    }
 
-uint16_t bt_readUInt16() {
-    // Read the bytes into a byte array
-    uint8_t bytes[2];
-    bt_readOrderedBytes(bytes, 2);
-    // Shift the bytes into the integer
-    uint16_t value = ((uint16_t) bytes[0] << 8) \
-                   | ((uint16_t) bytes[1]);
-    return value;
-}
+#endif
