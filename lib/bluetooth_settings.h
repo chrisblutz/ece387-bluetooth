@@ -67,8 +67,8 @@
 // Define whether the connection and disconnection handlers should be enabled
 // If BT_ENABLE_CONNECTION_HANDLER is enabled, BT_ON_CONNECTION { /* ... */ } must be defined
 // If BT_ENABLE_DISCONNECTION_HANDLER is enabled, BT_ON_DISCONNECTION { /* ... */ } must be defined
-#define BT_ENABLE_CONNECTION_HANDLER    1
-#define BT_ENABLE_DISCONNECTION_HANDLER 1
+#define BT_ENABLE_CONNECTION_HANDLER    0
+#define BT_ENABLE_DISCONNECTION_HANDLER 0
 
 // Define the timeout in milliseconds for connecting/communicating
 // with the Bluetooth module before the library registers a failure/error
