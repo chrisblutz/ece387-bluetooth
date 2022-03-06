@@ -39,22 +39,48 @@ See [the wiki page]() for a description of the different available configuration
 
 ### Transmitting/Receiving Data
 
-Once the module is configured, it can be used to communicate with remote devices using the various reading/writing functions.  For example, to send the string `Hello, world!` to a remote device and wait for a response, the following program could be used:
+Once the module is configured, it can be used to communicate with remote devices using the various reading/writing functions.
+
+#### Basic I/O
+
+The most basic type of reading/writing that the library provides is byte-based.  The three main useful functions are:
+- `uint8_t bt_available()` - checks if a byte is currently available
+- `void bt_write(uint8_t)` - writes a byte
+- `uint8_t bt_read()` - reads a byte
+
+For example, the following code transmits several bytes through the Bluetooth connection, and then loops forever, handling any data that is sent back.
 
 ```c
+#include "bluetooth.h"
+
 int main() {
     bt_setup();
 
-    bt_writeString("Hello, world!\n");
+    bt_write('A');
+    bt_write('B');
+    bt_write('C');
 
-    char buffer[20];
-    bt_readString('\n', buffer, 20);
+    while (1) {
+      if (bt_available()) {
+        uint8_t in = bt_read();
+        // Handle input stored in "in"
+      }
+    }
 
     return 0;
 }
 ```
 
-See [the wiki page]() for a description of the different write and read functions.
+#### Advanced I/O
+
+The library provides several utility functions for sending other types of objects as well:
+- `bt_readString()`/`bt_writeString()` - reads/writes strings
+- `bt_readInt32()`/`bt_writeInt32()` - reads/writes 32-bit signed integers
+- `bt_readUInt32()`/`bt_writeUInt32()` - reads/writes 32-bit unsigned integers
+- `bt_readInt16()`/`bt_writeInt16()` - reads/writes 16-bit signed integers
+- `bt_readUInt16()`/`bt_writeUInt16()` - reads/writes 16-bit unsigned integers
+
+See [the wiki page]() for a description of the different available write and read functions.
 
 *Note: Configuration commands will not work while the module is connected to a remote device, as the mechanisms used to send these commands to the module is the same as the one used to send data to the remote device.  However, using the `bt_test()` function while connected to a remote device will cause a disconnection, and you will need to reconnect the devices, due to the functionality of the underlying `AT` command it uses.*
 
@@ -64,4 +90,4 @@ The software UART code is based on/modified from [this repository](https://githu
 - Improved the coherence and legibility of constant and macro names (especially ones that are user-configurable)
 - Added logic to detect consecutive byte transmissions (useful for transmissions consisting of multiple bytes where there is no consistent termination point)
 - Added logic to determine if a remote device is connected (and allow handlers to run when one is connected/disconnected)
-- Added logic to transmit/receive additional data types (like strings)
+- Added logic to transmit/receive additional data types (like strings and integers)

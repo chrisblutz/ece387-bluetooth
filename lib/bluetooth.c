@@ -659,7 +659,7 @@ void bt_flush() {
     }
 
     void bt_writeInt32(int32_t value) {
-        // Break down the integer into a byte array (most significant bit first)
+        // Break down the integer into a byte array (most significant byte first)
         uint8_t bytes[] = {
             (value & 0xFF000000) >> 24,
             (value & 0x00FF0000) >> 16,
@@ -676,14 +676,14 @@ void bt_flush() {
         bt_readOrderedBytes(bytes, 4);
         // Shift the bytes into the integer
         int32_t value = ((uint32_t) bytes[0] << 24) \
-                    | ((uint32_t) bytes[1] << 16) \
-                    | ((uint32_t) bytes[2] << 8) \
-                    | ((uint32_t) bytes[3]);
+                      | ((uint32_t) bytes[1] << 16) \
+                      | ((uint32_t) bytes[2] << 8) \
+                      | ((uint32_t) bytes[3]);
         return value;
     }
 
     void bt_writeUInt32(uint32_t value) {
-        // Break down the integer into a byte array (most significant bit first)
+        // Break down the integer into a byte array (most significant byte first)
         uint8_t bytes[] = {
             (value & 0xFF000000) >> 24,
             (value & 0x00FF0000) >> 16,
@@ -700,14 +700,14 @@ void bt_flush() {
         bt_readOrderedBytes(bytes, 4);
         // Shift the bytes into the integer
         uint32_t value = ((uint32_t) bytes[0] << 24) \
-                    | ((uint32_t) bytes[1] << 16) \
-                    | ((uint32_t) bytes[2] << 8) \
-                    | ((uint32_t) bytes[3]);
+                       | ((uint32_t) bytes[1] << 16) \
+                       | ((uint32_t) bytes[2] << 8) \
+                       | ((uint32_t) bytes[3]);
         return value;
     }
 
     void bt_writeInt16(int16_t value) {
-        // Break down the integer into a byte array (most significant bit first)
+        // Break down the integer into a byte array (most significant byte first)
         uint8_t bytes[] = {
             (value & 0xFF00) >> 8,
             value & 0x00FF
@@ -722,12 +722,12 @@ void bt_flush() {
         bt_readOrderedBytes(bytes, 2);
         // Shift the bytes into the integer
         int16_t value = ((uint16_t) bytes[0] << 8) \
-                    | ((uint16_t) bytes[1]);
+                      | ((uint16_t) bytes[1]);
         return value;
     }
 
     void bt_writeUInt16(uint16_t value) {
-        // Break down the integer into a byte array (most significant bit first)
+        // Break down the integer into a byte array (most significant byte first)
         uint8_t bytes[] = {
             (value & 0xFF00) >> 8,
             value & 0x00FF
@@ -742,7 +742,7 @@ void bt_flush() {
         bt_readOrderedBytes(bytes, 2);
         // Shift the bytes into the integer
         uint16_t value = ((uint16_t) bytes[0] << 8) \
-                    | ((uint16_t) bytes[1]);
+                       | ((uint16_t) bytes[1]);
         return value;
     }
 
