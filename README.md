@@ -14,7 +14,7 @@ To use this library, copy the `.h` and `.c` files in the `lib/` directory to you
 
 The `bluetooth_settings.h` file contains the user-configurable settings for transmitter/receiver pins and other options.  By default, these are set up for a ATmega328P with a UART baud rate of 9600, using timer 0 for interrupts, and using pin 2 for receiving and pin 3 for transmitting.
 
-See [the wiki page]() for a description of the different options.
+See [the wiki page](https://github.com/chrisblutz/ece387-bluetooth/wiki/Documentation#library-settings) for a description of the different options.
 
 ### Configuring the Bluetooth Module
 
@@ -35,7 +35,7 @@ int main() {
 }
 ```
 
-See [the wiki page]() for a description of the different available configuration functions.
+See [the wiki page](https://github.com/chrisblutz/ece387-bluetooth/wiki/Documentation#configuration-functions) for a description of the different available configuration functions.
 
 ### Transmitting/Receiving Data
 
@@ -80,7 +80,7 @@ The library provides several utility functions for sending other types of object
 - `bt_readInt16()`/`bt_writeInt16()` - reads/writes 16-bit signed integers
 - `bt_readUInt16()`/`bt_writeUInt16()` - reads/writes 16-bit unsigned integers
 
-See [the wiki page]() for a description of the different available write and read functions.
+See [the wiki page](https://github.com/chrisblutz/ece387-bluetooth/wiki/Documentation#uart-and-io) for a description of the different available write and read functions.
 
 *Note: Configuration commands will not work while the module is connected to a remote device, as the mechanisms used to send these commands to the module is the same as the one used to send data to the remote device.  However, using the `bt_test()` function while connected to a remote device will cause a disconnection, and you will need to reconnect the devices, due to the functionality of the underlying `AT` command it uses.*
 
