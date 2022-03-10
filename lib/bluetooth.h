@@ -107,10 +107,6 @@ uint8_t bt_setup();
      * It uses the "AT" command to ping the module, and expects a
      * response of "OK".
      * 
-     * Note: Calling this function while a device is connected to
-     * the module will force that device to disconnect, and the "AT"
-     * command will return "OK+LOST" instead.
-     * 
      * @returns 1 if the module responds positively, 0 otherwise 
      */
     uint8_t bt_test();
