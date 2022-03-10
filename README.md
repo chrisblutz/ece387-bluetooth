@@ -37,6 +37,8 @@ int main() {
 
 See [the wiki page](https://github.com/chrisblutz/ece387-bluetooth/wiki/Documentation#configuration-functions) for a description of the different available configuration functions.
 
+*Note: Configuration commands will not work while the module is connected to a remote device, as the mechanisms used to send these commands to the module is the same as the one used to send data to the remote device.*
+
 ### Transmitting/Receiving Data
 
 Once the module is configured, it can be used to communicate with remote devices using the various reading/writing functions.
@@ -81,8 +83,6 @@ The library provides several utility functions for sending other types of object
 - `bt_readUInt16()`/`bt_writeUInt16()` - reads/writes 16-bit unsigned integers
 
 See [the wiki page](https://github.com/chrisblutz/ece387-bluetooth/wiki/Documentation#uart-and-io) for a description of the different available write and read functions.
-
-*Note: Configuration commands will not work while the module is connected to a remote device, as the mechanisms used to send these commands to the module is the same as the one used to send data to the remote device.  However, using the `bt_test()` function while connected to a remote device will cause a disconnection, and you will need to reconnect the devices, due to the functionality of the underlying `AT` command it uses.*
 
 ## Acknowledgements
 
