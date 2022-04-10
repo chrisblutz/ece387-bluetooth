@@ -6,6 +6,14 @@
 - Functions for module configuration (including setting module name, PIN code, etc.)
 - Utility functions for sending/receiving strings and other data types
 
+## Repository Structure
+
+The following library files are located in the `lib/` directory:
+- `bluetooth.c` - this file contains the implementation of functions for the Bluetooth library
+- `bluetooth.h` - this file contains the prototypes for all public-facing functions and macros in the library
+- `bluetooth_internal.h` - this file contains prototypes for internal functions for the library
+- `bluetooth_settings.h` - this file contains macros and constants that can be used to configure the library
+
 ## Using the Library
 
 To use this library, copy the `.h` and `.c` files in the `lib/` directory to your project's library directory.  Include `bluetooth.h` in your project to access the API functions, and ensure that `bluetooth.c` is included in your build command(s).
